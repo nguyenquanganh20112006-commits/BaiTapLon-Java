@@ -1,6 +1,19 @@
 ﻿EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT ALL"
 EXEC sp_MSforeachtable 'DROP TABLE ?'
 
+DROP TABLE Users;
+DELETE FROM NotificationReads;
+DELETE FROM Notifications;
+DELETE FROM Violations;
+DELETE FROM Invoices;
+DELETE FROM Utilities;
+DELETE FROM Contracts;
+DELETE FROM PendingAccounts;
+DELETE FROM Users WHERE role = 'STUDENT';
+DELETE FROM Students;
+DELETE FROM Rooms;
+GO
+
 SELECT @@SERVERNAME
 SELECT username, password, role
 FROM Users
@@ -284,9 +297,15 @@ GO
 -- Tài khoản admin mặc định
 -- Mật khẩu "admin123" → SHA-256
 INSERT INTO Users (username, password, role, full_name, student_id)
-VALUES ('admin',
-        '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
-        'ADMIN', N'Quản trị viên', NULL);
+VALUES (
+    'admin',
+    '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
+    'ADMIN',
+    N'Quản trị viên',
+    NULL
+);
+
+
 GO
 
 -- Cấu hình mặc định (khớp SettingsPanel.java)
@@ -314,3 +333,162 @@ GO
 
 PRINT N'✅ SDMS Database khởi tạo thành công — 11 bảng sẵn sàng.';
 GO
+
+
+
+
+
+
+
+
+
+
+
+
+-- ================================================================
+-- 1. ROOMS (15 phòng)
+-- ================================================================
+INSERT INTO Rooms (id, name, type, floor, capacity, occupied) VALUES
+('P101', N'Phòng 101', N'4 người', 1, 4, 4),
+('P102', N'Phòng 102', N'4 người', 1, 4, 3),
+('P103', N'Phòng 103', N'4 người', 1, 4, 2),
+('P104', N'Phòng 104', N'6 người', 1, 6, 6),
+('P201', N'Phòng 201', N'4 người', 2, 4, 4),
+('P202', N'Phòng 202', N'4 người', 2, 4, 1),
+('P203', N'Phòng 203', N'6 người', 2, 6, 5),
+('P204', N'Phòng 204', N'6 người', 2, 6, 0),
+('P301', N'Phòng 301', N'4 người', 3, 4, 2),
+('P302', N'Phòng 302', N'4 người', 3, 4, 4),
+('P303', N'Phòng 303', N'6 người', 3, 6, 3),
+('P304', N'Phòng 304', N'6 người', 3, 6, 6),
+('P401', N'Phòng 401', N'4 người', 4, 4, 0),
+('P402', N'Phòng 402', N'4 người', 4, 4, 2),
+('P403', N'Phòng 403', N'6 người', 4, 6, 0);
+GO
+
+-- ================================================================
+-- 2. STUDENTS (20 sinh viên)
+-- ================================================================
+INSERT INTO Students (id, full_name, birth_date, gender, id_card, phone, email, university, faculty, class_name, address, room_id, status) VALUES
+('SV001249', N'Nguyễn Văn An',     '15/03/2004', N'Nam', '079204001234', '0901234001', 'an.nguyen01@gmail.com',  N'CMC UNIVERSITY', N'CNTT',        'CNTT01-K65', N'Nam Định',  'P101', N'Đang ở'),
+('SV001250', N'Trần Thị Bình',     '22/07/2004', N'Nữ',  '079204001235', '0901234002', 'binh.tran02@gmail.com',  N'CMC UNIVERSITY', N'Điện - Điện tử', 'DTVT01-K65', N'Hà Nam', 'P101', N'Đang ở'),
+('SV001251', N'Lê Văn Cường',      '01/01/2004', N'Nam', '079204001236', '0901234003', 'cuong.le03@gmail.com',   N'CMC UNIVERSITY', N'Cơ khí',     'CK02-K65',   N'Thanh Hóa', 'P101', N'Đang ở'),
+('SV001252', N'Phạm Thị Dung',     '12/05/2004', N'Nữ',  '079204001237', '0901234004', 'dung.pham04@gmail.com',  N'CMC UNIVERSITY', N'CNTT',       'CNTT02-K65', N'Hải Dương', 'P101', N'Đang ở'),
+('SV001253', N'Hoàng Văn Em',      '30/09/2003', N'Nam', '079203001238', '0901234005', 'em.hoang05@gmail.com',   N'CMC UNIVERSITY', N'Hóa học',    'HH01-K64',   N'Bắc Giang', 'P102', N'Đang ở'),
+('SV001254', N'Vũ Thị Giang',      '18/02/2004', N'Nữ',  '079204001239', '0901234006', 'giang.vu06@gmail.com',   N'CMC UNIVERSITY', N'Marketing',  'MK03-K65',   N'Phú Thọ', 'P102', N'Đang ở'),
+('SV001255', N'Đỗ Văn Hùng',       '05/11/2003', N'Nam', '079203001240', '0901234007', 'hung.do07@gmail.com',    N'CMC UNIVERSITY', N'CNTT',       'CNTT03-K64', N'Vĩnh Phúc', 'P102', N'Đang ở'),
+('SV001256', N'Ngô Thị Lan',       '09/04/2004', N'Nữ',  '079204001241', '0901234008', 'lan.ngo08@gmail.com',    N'CMC UNIVERSITY',     N'Kinh tế đối ngoại', 'KTDN02-K65', N'Ninh Bình', 'P103', N'Đang ở'),
+('SV001257', N'Bùi Văn Khánh',     '25/06/2004', N'Nam', '079204001242', '0901234009', 'khanh.bui09@gmail.com',  N'CMC UNIVERSITY', N'Điện - Điện tử', 'DTVT02-K65', N'Hưng Yên', 'P103', N'Đang ở'),
+('SV001258', N'Đặng Thị Mai',      '14/08/2004', N'Nữ',  '079204001243', '0901234010', 'mai.dang10@gmail.com',   N'CMC UNIVERSITY', N'CNTT',       'CNTT04-K65', N'Thái Bình', 'P104', N'Đang ở'),
+('SV001259', N'Phan Văn Nam',      '03/12/2003', N'Nam', '079203001244', '0901234011', 'nam.phan11@gmail.com',   N'CMC UNIVERSITY', N'Cơ khí',     'CK03-K64',   N'Quảng Ninh', 'P104', N'Đang ở'),
+('SV001260', N'Lý Thị Oanh',       '27/03/2004', N'Nữ',  '079204001245', '0901234012', 'oanh.ly12@gmail.com',    N'CMC UNIVERSITY', N'Hóa học',    'HH02-K65',   N'Hải Phòng', 'P104', N'Đang ở'),
+('SV001261', N'Trịnh Văn Phúc',    '19/10/2004', N'Nam', '079204001246', '0901234013', 'phuc.trinh13@gmail.com', N'CMC UNIVERSITY', N'CNTT',       'CNTT05-K65', N'Nghệ An', 'P104', N'Đang ở'),
+('SV001262', N'Vương Thị Quỳnh',   '08/01/2004', N'Nữ',  '079204001247', '0901234014', 'quynh.vuong14@gmail.com',N'CMC UNIVERSITY', N'Tài chính',  'TC01-K65',   N'Hà Tĩnh', 'P104', N'Đang ở'),
+('SV001263', N'Đinh Văn Sơn',      '21/05/2003', N'Nam', '079203001248', '0901234015', 'son.dinh15@gmail.com',   N'CMC UNIVERSITY', N'Điện - Điện tử', 'DTVT03-K64', N'Thanh Hóa', 'P201', N'Đang ở'),
+('SV001264', N'Tô Thị Thảo',       '11/07/2004', N'Nữ',  '079204001249', '0901234016', 'thao.to16@gmail.com',    N'CMC UNIVERSITY',     N'Quản trị kinh doanh', 'QTKD01-K65', N'Nam Định', 'P201', N'Đang ở'),
+('SV001265', N'Mai Văn Tùng',      '02/02/2004', N'Nam', '079204001250', '0901234017', 'tung.mai17@gmail.com',   N'CMC UNIVERSITY', N'CNTT',       'CNTT06-K65', N'Bắc Ninh', 'P201', N'Đang ở'),
+('SV001266', N'Cao Thị Uyên',      '29/09/2004', N'Nữ',  '079204001251', '0901234018', 'uyen.cao18@gmail.com',   N'CMC UNIVERSITY', N'Cơ khí',     'CK04-K65',   N'Hòa Bình', 'P201', N'Đang ở'),
+('SV001267', N'Hồ Văn Việt',       '16/04/2004', N'Nam', '079204001252',   '0901234019', 'viet.ho19@gmail.com',   N'CMC UNIVERSITY', N'CNTT',       'CNTT07-K65', N'Sơn La', NULL, N'Chờ duyệt'),
+('SV001268', N'Lương Thị Xuân',    '07/06/2004', N'Nữ',  '079204001253',   '0901234020', 'xuan.luong20@gmail.com',N'CMC UNIVERSITY', N'Hóa học',    'HH03-K65',   N'Lào Cai', NULL, N'Mới đăng ký');
+GO
+
+
+
+-- 5. CONTRACTS (hợp đồng cho sinh viên đang ở)
+-- ================================================================
+INSERT INTO Contracts (id, student_id, student_name, room_id, start_date, end_date, monthly_fee, note, status) VALUES
+(N'HĐ0001', 'SV001249', N'Nguyễn Văn An',   'P101', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0002', 'SV001250', N'Trần Thị Bình',   'P101', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0003', 'SV001251', N'Lê Văn Cường',    'P101', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0004', 'SV001252', N'Phạm Thị Dung',   'P101', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0005', 'SV001253', N'Hoàng Văn Em',    'P102', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0006', 'SV001254', N'Vũ Thị Giang',    'P102', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0007', 'SV001255', N'Đỗ Văn Hùng',     'P102', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0008', 'SV001256', N'Ngô Thị Lan',     'P103', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0009', 'SV001257', N'Bùi Văn Khánh',   'P103', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0010', 'SV001258', N'Đặng Thị Mai',    'P104', '2025-09-01', '2026-08-31', 650000, '', 'ACTIVE'),
+(N'HĐ0011', 'SV001259', N'Phan Văn Nam',    'P104', '2025-09-01', '2026-08-31', 650000, '', 'ACTIVE'),
+(N'HĐ0012', 'SV001260', N'Lý Thị Oanh',     'P104', '2025-09-01', '2026-08-31', 650000, '', 'ACTIVE'),
+(N'HĐ0013', 'SV001261', N'Trịnh Văn Phúc',  'P104', '2025-09-01', '2026-08-31', 650000, '', 'ACTIVE'),
+(N'HĐ0014', 'SV001262', N'Vương Thị Quỳnh', 'P104', '2025-09-01', '2026-08-31', 650000, '', 'ACTIVE'),
+(N'HĐ0015', 'SV001263', N'Đinh Văn Sơn',    'P201', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0016', 'SV001264', N'Tô Thị Thảo',     'P201', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0017', 'SV001265', N'Mai Văn Tùng',    'P201', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+(N'HĐ0018', 'SV001266', N'Cao Thị Uyên',    'P201', '2025-09-01', '2026-08-31', 850000, '', 'ACTIVE'),
+-- một hợp đồng cũ đã hết hạn (ví dụ minh họa)
+(N'HĐ0019', 'SV001249', N'Nguyễn Văn An',   'P101', '2024-09-01', '2025-08-31', 800000, N'Hợp đồng năm trước', 'EXPIRED');
+GO
+
+-- ================================================================
+-- 6. UTILITIES (chỉ số điện nước tháng 05/2026 cho các phòng có người)
+-- ================================================================
+INSERT INTO Utilities (id, room_id, month, electric_prev, electric_curr, water_prev, water_curr, electric_unit_price, water_unit_price, note, confirmed) VALUES
+('UT0001', 'P101', '05/2026', 1200, 1340, 80, 92, 2000, 6000, '', 1),
+('UT0002', 'P102', '05/2026', 980,  1100, 60, 70, 2000, 6000, '', 1),
+('UT0003', 'P103', '05/2026', 760,  860,  45, 53, 2000, 6000, '', 1),
+('UT0004', 'P104', '05/2026', 1500, 1690, 95, 110, 2000, 6000, '', 1),
+('UT0005', 'P201', '05/2026', 1100, 1230, 70, 81, 2000, 6000, '', 1),
+('UT0006', 'P203', '05/2026', 1300, 1450, 88, 100, 2000, 6000, N'Cần kiểm tra lại đồng hồ nước', 0),
+('UT0007', 'P301', '05/2026', 500,  560,  30, 35, 2000, 6000, '', 1),
+('UT0008', 'P302', '05/2026', 1400, 1580, 92, 105, 2000, 6000, '', 1),
+('UT0009', 'P303', '05/2026', 700,  790,  40, 47, 2000, 6000, '', 1),
+('UT0010', 'P304', '05/2026', 1600, 1820, 100, 118, 2000, 6000, '', 1);
+GO
+
+-- ================================================================
+-- 7. INVOICES (hóa đơn tháng 05/2026, một số đã thanh toán)
+--    electric_fee = (curr-prev)*don_gia / so_nguoi_o_phong (ước tính)
+-- ================================================================
+INSERT INTO Invoices (id, student_id, student_name, room_id, utility_id, month, room_fee, electric_fee, water_fee, paid) VALUES
+('HD0001', 'SV001249', N'Nguyễn Văn An',   'P101', 'UT0001', '05/2026', 850000, 70000, 18000, 1),
+('HD0002', 'SV001250', N'Trần Thị Bình',   'P101', 'UT0001', '05/2026', 850000, 70000, 18000, 1),
+('HD0003', 'SV001251', N'Lê Văn Cường',    'P101', 'UT0001', '05/2026', 850000, 70000, 18000, 0),
+('HD0004', 'SV001252', N'Phạm Thị Dung',   'P101', 'UT0001', '05/2026', 850000, 70000, 18000, 0),
+('HD0005', 'SV001253', N'Hoàng Văn Em',    'P102', 'UT0002', '05/2026', 850000, 80000, 20000, 1),
+('HD0006', 'SV001254', N'Vũ Thị Giang',    'P102', 'UT0002', '05/2026', 850000, 80000, 20000, 1),
+('HD0007', 'SV001255', N'Đỗ Văn Hùng',     'P102', 'UT0002', '05/2026', 850000, 80000, 20000, 0),
+('HD0008', 'SV001256', N'Ngô Thị Lan',     'P103', 'UT0003', '05/2026', 850000, 100000, 24000, 1),
+('HD0009', 'SV001257', N'Bùi Văn Khánh',   'P103', 'UT0003', '05/2026', 850000, 100000, 24000, 0),
+('HD0010', 'SV001258', N'Đặng Thị Mai',    'P104', 'UT0004', '05/2026', 650000, 63000, 15000, 1),
+('HD0011', 'SV001259', N'Phan Văn Nam',    'P104', 'UT0004', '05/2026', 650000, 63000, 15000, 1),
+('HD0012', 'SV001260', N'Lý Thị Oanh',     'P104', 'UT0004', '05/2026', 650000, 63000, 15000, 0),
+('HD0013', 'SV001261', N'Trịnh Văn Phúc',  'P104', 'UT0004', '05/2026', 650000, 63000, 15000, 0),
+('HD0014', 'SV001262', N'Vương Thị Quỳnh', 'P104', 'UT0004', '05/2026', 650000, 63000, 15000, 1),
+('HD0015', 'SV001263', N'Đinh Văn Sơn',    'P201', 'UT0005', '05/2026', 850000, 65000, 16500, 1),
+('HD0016', 'SV001264', N'Tô Thị Thảo',     'P201', 'UT0005', '05/2026', 850000, 65000, 16500, 0),
+('HD0017', 'SV001265', N'Mai Văn Tùng',    'P201', 'UT0005', '05/2026', 850000, 65000, 16500, 1),
+('HD0018', 'SV001266', N'Cao Thị Uyên',    'P201', 'UT0005', '05/2026', 850000, 65000, 16500, 0);
+GO
+
+-- ================================================================
+-- 8. VIOLATIONS (vi phạm nội quy)
+-- ================================================================
+INSERT INTO Violations (id, student_id, student_name, room_id, vio_date, type, description, severity, fine, handled_by, status, note) VALUES
+('VP0001', 'SV001251', N'Lê Văn Cường',  'P101', '2026-05-10', N'Gây tiếng ồn',        N'Mở nhạc lớn sau giờ giới nghiêm', 'LOW',      0,      N'Quản trị viên', 'PROCESSED', N'Đã nhắc nhở'),
+('VP0002', 'SV001255', N'Đỗ Văn Hùng',   'P102', '2026-05-15', N'Sử dụng thiết bị cấm', N'Đun nấu trong phòng bằng bếp điện', 'MEDIUM',  100000, N'Quản trị viên', 'PROCESSED', ''),
+('VP0003', 'SV001257', N'Bùi Văn Khánh', 'P103', '2026-05-20', N'Vi phạm giờ giới nghiêm', N'Về phòng sau 23h không báo trước', 'LOW', 0, N'Quản trị viên', 'PENDING', ''),
+('VP0004', 'SV001259', N'Phan Văn Nam',  'P104', '2026-05-28', N'Hút thuốc trong phòng', N'Bị phát hiện hút thuốc trong phòng ở', 'HIGH', 200000, N'Quản trị viên', 'APPEALING', N'Sinh viên đang khiếu nại'),
+('VP0005', 'SV001265', N'Mai Văn Tùng',  'P201', '2026-06-02', N'Khách ở qua đêm',      N'Cho người ngoài ở lại qua đêm không đăng ký', 'MEDIUM', 100000, '', 'PENDING', '');
+GO
+
+-- ================================================================
+-- 9. NOTIFICATIONS (thông báo)
+-- ================================================================
+INSERT INTO Notifications (id, title, content, type, target, target_id, created_at, created_by, pinned) VALUES
+('TB0001', N'Thông báo đóng tiền phòng tháng 05/2026',
+ N'Đề nghị các bạn sinh viên hoàn tất thanh toán hóa đơn tháng 05/2026 trước ngày 15/06/2026.',
+ 'INVOICE', 'ALL', '', '2026-06-01 08:00:00', N'Quản trị viên', 1),
+('TB0002', N'Lịch kiểm tra phòng định kỳ',
+ N'Ban quản lý sẽ tiến hành kiểm tra vệ sinh và an toàn phòng ở vào ngày 20/06/2026.',
+ 'INSPECTION', 'ALL', '', '2026-06-05 09:00:00', N'Quản trị viên', 1),
+('TB0003', N'Nhắc nhở vi phạm nội quy',
+ N'Phòng P102 đã có sinh viên vi phạm quy định sử dụng thiết bị điện. Đề nghị các phòng chú ý.',
+ 'VIOLATION', 'ROOM', 'P102', '2026-05-16 10:30:00', N'Quản trị viên', 0),
+('TB0004', N'Thông báo gia hạn hợp đồng',
+ N'Các hợp đồng thuê phòng năm học 2025-2026 sẽ hết hạn vào 31/08/2026, sinh viên cần đăng ký gia hạn trước 01/08/2026.',
+ 'CONTRACT', 'ALL', '', '2026-06-10 14:00:00', N'Quản trị viên', 0),
+('TB0005', N'Thông báo khẩn: Cắt nước sửa chữa',
+ N'Khu nhà sẽ tạm ngừng cấp nước từ 8h-12h ngày 16/06/2026 để sửa chữa đường ống.',
+ 'URGENT', 'ALL', '', '2026-06-13 18:00:00', N'Quản trị viên', 1);
+GO
+

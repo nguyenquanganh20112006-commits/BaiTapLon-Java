@@ -1,4 +1,4 @@
-package com.sdms.utils;
+ package com.sdms.utils;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -57,16 +57,18 @@ public class DatabaseConnection {
 
     // ── Kiểm tra kết nối — gọi khi khởi động ───────────────────
     public static boolean testConnection() {
-        try {
-            getConnection();
-             System.out.println("URL = " + URL);
-            System.out.println("✅ Kết nối SQL Server thành công! DB: " + DATABASE);
-            return true;
-        } catch (SQLException e) {
-            System.err.println("❌ Lỗi kết nối SQL Server: " + e.getMessage());
-            return false;
+    try {
+        System.out.println("SERVER = " + SERVER);
+        System.out.println("URL = " + URL);
 
-        }
-        
+        getConnection();
+
+        System.out.println("✅ Kết nối SQL Server thành công!");
+        return true;
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+        return false;
     }
+}
 }
