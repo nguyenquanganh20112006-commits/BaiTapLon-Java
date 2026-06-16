@@ -46,7 +46,7 @@ public class UtilityPanel extends JPanel {
     public UtilityPanel() {
         setBackground(UITheme.BG_LIGHT);
         setLayout(new BorderLayout());
-        initSampleData();
+        utilities.addAll(DatabaseService.getAllUtilities()); // Tải dữ liệu từ database
         add(buildHeader(), BorderLayout.NORTH);
 
         JSplitPane split = new JSplitPane(
@@ -58,21 +58,6 @@ public class UtilityPanel extends JPanel {
         split.setBorder(null);
         split.setResizeWeight(0.25);
         add(split, BorderLayout.CENTER);
-    }
-
-    // ── Tạo dữ liệu mẫu ──────────────────────────────────────────
-    private void initSampleData() {
-        utilities.add(new Utility("UT0001","A301","06/2026", 1240,1278, 42,46));
-        utilities.add(new Utility("UT0002","B204","06/2026", 980, 1010, 18,21));
-        utilities.add(new Utility("UT0003","A204","06/2026", 760, 795,  30,33.5));
-        utilities.add(new Utility("UT0004","B102","06/2026", 1120,1160, 55,59));
-        utilities.add(new Utility("UT0005","C305","06/2026", 880, 915,  22,25.5));
-        utilities.add(new Utility("UT0006","D201","06/2026", 600, 628,  14,16.8));
-        utilities.add(new Utility("UT0007","A301","05/2026", 1205,1240, 40,42));
-        utilities.add(new Utility("UT0008","B204","05/2026", 960, 980,  17,18));
-        // Đánh dấu vài bản ghi đã chốt
-        utilities.get(6).setConfirmed(true);
-        utilities.get(7).setConfirmed(true);
     }
 
     // ── Header ────────────────────────────────────────────────────
