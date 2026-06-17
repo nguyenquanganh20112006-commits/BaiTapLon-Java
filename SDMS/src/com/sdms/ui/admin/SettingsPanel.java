@@ -1,11 +1,9 @@
 package com.sdms.ui.admin;
 
 import com.sdms.utils.UITheme;
-
+import java.awt.*;
 import javax.swing.*;
 import javax.swing.border.*;
-import java.awt.*;
-import java.awt.event.*;
 
 /**
  * Panel cài đặt hệ thống ký túc xá.

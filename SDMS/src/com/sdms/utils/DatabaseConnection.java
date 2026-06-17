@@ -13,18 +13,18 @@ public class DatabaseConnection {
     // ╔══════════════════════════════════════════════════════════╗
     // ║  SỬA 4 DÒNG NÀY CHO KHỚP VỚI MÁY BẠN                     ║
     // ╚══════════════════════════════════════════════════════════╝
-    private static final String SERVER   = "QuangAnh";        // hoặc ".\SQLEXPRESS" / "127.0.0.1"
+    private static final String SERVER   = "AlphaKHYM\\SQLEXPRESS";        // hoặc ".\SQLEXPRESS" / "127.0.0.1"
     private static final String DATABASE = "quanly-ktx";      // tên DB trong ktx.sql
     private static final String USERNAME = "sdms";            // login vừa tạo trong ktx.sql
     private static final String PASSWORD = "123456";          // mật khẩu trong ktx.sql
 
     // URL kết nối — trustServerCertificate=true tránh lỗi SSL với SQL Server cục bộ
     private static final String URL =
-            "jdbc:sqlserver://" + SERVER
-            + ";databaseName=" + DATABASE
-            + ";encrypt=true"
-            + ";trustServerCertificate=true"
-            + ";sendStringParametersAsUnicode=true";   // quan trọng cho tiếng Việt
+        "jdbc:sqlserver://" + SERVER
+        + ";databaseName=" + DATABASE
+        + ";encrypt=true"
+        + ";trustServerCertificate=true"
+        + ";sendStringParametersAsUnicode=true";  // quan trọng cho tiếng Việt
 
     private static Connection connection = null;
 
@@ -56,17 +56,19 @@ public class DatabaseConnection {
     }
 
     // ── Kiểm tra kết nối — gọi khi khởi động ───────────────────
-    public static boolean testConnection() {
-        try {
-            getConnection();
-             System.out.println("URL = " + URL);
-            System.out.println("✅ Kết nối SQL Server thành công! DB: " + DATABASE);
-            return true;
-        } catch (SQLException e) {
-            System.err.println("❌ Lỗi kết nối SQL Server: " + e.getMessage());
-            return false;
+   public static boolean testConnection() {
+    try {
+        System.out.println("SERVER = " + SERVER);
+        System.out.println("URL = " + URL);
 
-        }
-        
+        getConnection();
+
+        System.out.println("✅ Kết nối SQL Server thành công!");
+        return true;
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+        return false;
     }
+}
 }

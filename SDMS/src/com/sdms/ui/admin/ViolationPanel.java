@@ -1,20 +1,17 @@
 package com.sdms.ui.admin;
 
-import com.sdms.model.Student;
 import com.sdms.model.Violation;
-import com.sdms.utils.DataStore;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
-
-import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.swing.*;
+import javax.swing.border.*;
+import javax.swing.table.*;
 
 /**
  * Panel quản lý vi phạm nội quy ký túc xá.
@@ -53,15 +50,16 @@ public class ViolationPanel extends JPanel {
         initSampleData();
         add(buildHeader(), BorderLayout.NORTH);
 
-        JSplitPane split = new JSplitPane(
-            JSplitPane.HORIZONTAL_SPLIT, buildForm(), buildTableArea()
-        );
-        split.setDividerLocation(320);
-        split.setDividerSize(2);
-        split.setBackground(UITheme.BORDER);
-        split.setBorder(null);
-        split.setResizeWeight(0.27);
-        add(split, BorderLayout.CENTER);
+        // Fixed layout — form width locked, not draggable
+        JPanel center = new JPanel(new BorderLayout());
+        center.setBackground(UITheme.BG_LIGHT);
+        JPanel formPanel = buildForm();
+        formPanel.setPreferredSize(new Dimension(480, Integer.MAX_VALUE));
+        formPanel.setMinimumSize(new Dimension(480, 0));
+        formPanel.setMaximumSize(new Dimension(480, Integer.MAX_VALUE));
+        center.add(formPanel, BorderLayout.WEST);
+        center.add(buildTableArea(), BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
     }
 
     // ── Tạo dữ liệu mẫu ──────────────────────────────────────────
@@ -136,7 +134,11 @@ public class ViolationPanel extends JPanel {
 
     // ── FORM nhập liệu ────────────────────────────────────────────
     private JPanel buildForm() {
-        JPanel wrapper = new JPanel(new BorderLayout());
+        JPanel wrapper = new JPanel(new BorderLayout()) {
+            @Override public Dimension getPreferredSize() { return new Dimension(480, super.getPreferredSize().height); }
+            @Override public Dimension getMinimumSize()  { return new Dimension(480, 0); }
+            @Override public Dimension getMaximumSize()  { return new Dimension(480, Integer.MAX_VALUE); }
+        };
         wrapper.setBackground(UITheme.WHITE);
         wrapper.setBorder(new MatteBorder(0, 0, 0, 1, UITheme.BORDER));
 
@@ -153,13 +155,13 @@ public class ViolationPanel extends JPanel {
         sec.setAlignmentX(LEFT_ALIGNMENT);
 
         // Khởi tạo fields
-        tfId          = UITheme.textField("VP0001");
-        tfStudentId   = UITheme.textField("Mã sinh viên");
-        tfStudentName = UITheme.textField("Tên sinh viên");
-        tfDate        = UITheme.textField("dd/MM/yyyy");
-        tfFine        = UITheme.textField("0 (không phạt tiền)");
-        tfHandledBy   = UITheme.textField("Người xử lý");
-        tfNote        = UITheme.textField("Ghi chú...");
+        tfId          = UITheme.textField("");
+        tfStudentId   = UITheme.textField("");
+        tfStudentName = UITheme.textField("");
+        tfDate        = UITheme.textField("");
+        tfFine        = UITheme.textField("");
+        tfHandledBy   = UITheme.textField("");
+        tfNote        = UITheme.textField("");
 
         // Comboboxes
         String[] roomIds = 	DatabaseService.getAllRooms().stream()
@@ -185,69 +187,56 @@ public class ViolationPanel extends JPanel {
         descScroll.setAlignmentX(LEFT_ALIGNMENT);
         descScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
 
-        // Tự động điền khi mất focus mã SV
         tfStudentId.addFocusListener(new FocusAdapter() {
             @Override public void focusLost(FocusEvent e) {
                 autoFillStudent(tfStudentId.getText().trim());
             }
         });
 
-        // Mức độ → gợi ý tiền phạt
         cbSeverity.addActionListener(e -> suggestFine());
 
-        // Điền mã tiếp theo
         tfId.setText(nextViolationId());
         tfDate.setText(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
 
-        // Grid 2 cột
-        JPanel grid = new JPanel(new GridLayout(0, 2, 8, 8));
-        grid.setOpaque(false);
-        grid.setAlignmentX(LEFT_ALIGNMENT);
-        grid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 9999));
-
-        addField(grid, "Mã vi phạm",    tfId);
-        addField(grid, "Ngày vi phạm *",tfDate);
-        addField(grid, "Mã sinh viên *",tfStudentId);
-        addField(grid, "Phòng",         cbRoom);
-        addField(grid, "Loại vi phạm *",cbType);
-        addField(grid, "Mức độ *",      cbSeverity);
-        addField(grid, "Tiền phạt (đ)", tfFine);
-        addField(grid, "Trạng thái",    cbStatus);
-        addField(grid, "Người xử lý",   tfHandledBy);
-
-        // Tên SV full width
-        JPanel nameRow = singleRow("Tên sinh viên", tfStudentName);
+        // ── Rows khớp với ảnh ─────────────────────────────────────
+        JPanel row1 = makeRow2(makeFieldPanel("MÃ VI PHẠM",     tfId),
+                               makeFieldPanel("NGÀY VI PHẠM *", tfDate));
+        JPanel row2 = makeRow2(makeFieldPanel("MÃ SINH VIÊN *", tfStudentId),
+                               makeFieldPanel("PHÒNG",           cbRoom));
+        JPanel row3 = makeRow2(makeFieldPanel("LOẠI VI PHẠM *", cbType),
+                               makeFieldPanel("MỨC ĐỘ *",       cbSeverity));
+        JPanel row4 = makeRow2(makeFieldPanel("TIỀN PHẠT (Đ)",  tfFine),
+                               makeFieldPanel("TRẠNG THÁI",     cbStatus));
+        JPanel row5 = makeRow1("NGƯỜI XỬ LÝ", tfHandledBy);
+        JPanel row6 = makeRow1("TÊN SINH VIÊN", tfStudentName);
 
         // Mô tả full width
         JPanel descRow = new JPanel(new BorderLayout(0, 4));
-        descRow.setOpaque(false);
-        descRow.setAlignmentX(LEFT_ALIGNMENT);
+        descRow.setOpaque(false); descRow.setAlignmentX(LEFT_ALIGNMENT);
         descRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
-        descRow.add(UITheme.formLabel("Mô tả chi tiết"), BorderLayout.NORTH);
+        JLabel descLbl = new JLabel("MÔ TẢ CHI TIẾT");
+        descLbl.setFont(UITheme.FONT_LABEL); descLbl.setForeground(UITheme.TEXT_SECONDARY);
+        descRow.add(descLbl, BorderLayout.NORTH);
         descRow.add(descScroll, BorderLayout.CENTER);
 
-        // Ghi chú full width
-        JPanel noteRow = singleRow("Ghi chú", tfNote);
+        JPanel noteRow = makeRow1("GHI CHÚ", tfNote);
 
-        // Nút thao tác
+        // Nút thao tác hàng 1
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        btnRow.setOpaque(false);
-        btnRow.setAlignmentX(LEFT_ALIGNMENT);
+        btnRow.setOpaque(false); btnRow.setAlignmentX(LEFT_ALIGNMENT);
         btnRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-
-        JButton btnAdd    = UITheme.primaryBtn("➕ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("✏ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("🗑 Xóa");
-        JButton btnReset  = UITheme.outlineBtn("↺ Làm mới");
+        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
+        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
+        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
+        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
         btnRow.add(btnAdd); btnRow.add(btnEdit); btnRow.add(btnDelete); btnRow.add(btnReset);
 
         // Nút xử lý vi phạm
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        btnRow2.setOpaque(false);
-        btnRow2.setAlignmentX(LEFT_ALIGNMENT);
+        btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnProcess = UITheme.successBtn("✓ Đánh dấu đã xử lý");
-        JButton btnExport  = UITheme.purpleBtn("📊 Xuất báo cáo");
+        JButton btnProcess = UITheme.successBtn("□ Đánh dấu đã xử lý");
+        JButton btnExport  = UITheme.purpleBtn("□ Xuất báo cáo");
         btnRow2.add(btnProcess); btnRow2.add(btnExport);
 
         // Gắn sự kiện
@@ -261,17 +250,16 @@ public class ViolationPanel extends JPanel {
             JOptionPane.INFORMATION_MESSAGE));
 
         // Ghép form
-        form.add(sec);
-        form.add(grid);
-        form.add(Box.createVerticalStrut(8));
-        form.add(nameRow);
-        form.add(Box.createVerticalStrut(6));
-        form.add(descRow);
-        form.add(Box.createVerticalStrut(6));
-        form.add(noteRow);
-        form.add(Box.createVerticalStrut(12));
-        form.add(btnRow);
-        form.add(Box.createVerticalStrut(6));
+        form.add(sec);       form.add(Box.createVerticalStrut(4));
+        form.add(row1);      form.add(Box.createVerticalStrut(8));
+        form.add(row2);      form.add(Box.createVerticalStrut(8));
+        form.add(row3);      form.add(Box.createVerticalStrut(8));
+        form.add(row4);      form.add(Box.createVerticalStrut(8));
+        form.add(row5);      form.add(Box.createVerticalStrut(8));
+        form.add(row6);      form.add(Box.createVerticalStrut(8));
+        form.add(descRow);   form.add(Box.createVerticalStrut(6));
+        form.add(noteRow);   form.add(Box.createVerticalStrut(12));
+        form.add(btnRow);    form.add(Box.createVerticalStrut(6));
         form.add(btnRow2);
 
         JScrollPane scroll = new JScrollPane(form);
@@ -291,8 +279,8 @@ public class ViolationPanel extends JPanel {
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         toolbar.setOpaque(false);
 
-        tfSearch = UITheme.textField("🔍  Tìm mã VP, mã SV, tên, loại vi phạm...");
-        tfSearch.setPreferredSize(new Dimension(260, 36));
+        tfSearch = UITheme.textField("");
+        tfSearch.setPreferredSize(new Dimension(240, 36));
 
         JComboBox<String> cbSevFilter = UITheme.comboBox(
             new String[]{"Tất cả mức độ", "Nhẹ", "Trung bình", "Nặng", "Rất nặng"}
@@ -304,8 +292,8 @@ public class ViolationPanel extends JPanel {
         );
         cbStatusFilter.setPreferredSize(new Dimension(150, 36));
 
-        JButton btnRefresh = UITheme.outlineBtn("↺");
-        btnRefresh.setPreferredSize(new Dimension(44, 36));
+        JButton btnRefresh = UITheme.outlineBtn("□ Làm mới");
+        btnRefresh.setPreferredSize(new Dimension(100, 36));
 
         toolbar.add(tfSearch);
         toolbar.add(cbSevFilter);
@@ -646,23 +634,31 @@ public class ViolationPanel extends JPanel {
         };
     }
 
-    private JPanel singleRow(String label, JComponent field) {
+    private JPanel makeFieldPanel(String label, JComponent field) {
         JPanel p = new JPanel(new BorderLayout(0, 4));
         p.setOpaque(false);
-        p.setAlignmentX(LEFT_ALIGNMENT);
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
-        p.add(UITheme.formLabel(label), BorderLayout.NORTH);
-        p.add(field, BorderLayout.CENTER);
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(UITheme.FONT_LABEL); lbl.setForeground(UITheme.TEXT_SECONDARY);
+        p.add(lbl, BorderLayout.NORTH); p.add(field, BorderLayout.CENTER);
         return p;
     }
 
-    private void addField(JPanel grid, String label, JComponent field) {
-        JPanel cell = new JPanel(new BorderLayout(0, 4));
-        cell.setOpaque(false);
-        cell.add(UITheme.formLabel(label), BorderLayout.NORTH);
-        cell.add(field, BorderLayout.CENTER);
-        grid.add(cell);
+    private JPanel makeRow2(JPanel left, JPanel right) {
+        JPanel row = new JPanel(new GridLayout(1, 2, 8, 0));
+        row.setOpaque(false); row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        row.add(left); row.add(right);
+        return row;
     }
+
+    private JPanel makeRow1(String label, JComponent field) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setOpaque(false); row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        row.add(makeFieldPanel(label, field), BorderLayout.CENTER);
+        return row;
+    }
+
 
     private void showWarn(String msg) {
         JOptionPane.showMessageDialog(this, "⚠ " + msg, "Lưu ý", JOptionPane.WARNING_MESSAGE);
