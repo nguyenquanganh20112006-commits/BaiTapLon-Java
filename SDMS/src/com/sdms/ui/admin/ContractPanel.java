@@ -55,15 +55,16 @@ public class ContractPanel extends JPanel {
         add(buildHeader(), BorderLayout.NORTH);
 
         // Chia đôi: form trái | bảng phải
-        JSplitPane split = new JSplitPane(
-            JSplitPane.HORIZONTAL_SPLIT, buildForm(), buildTableArea()
-        );
-        split.setDividerLocation(310);
-        split.setDividerSize(2);
-        split.setBackground(UITheme.BORDER);
-        split.setBorder(null);
-        split.setResizeWeight(0.25);
-        add(split, BorderLayout.CENTER);
+        // Fixed layout — form width locked, not draggable
+        JPanel center = new JPanel(new BorderLayout());
+        center.setBackground(UITheme.BG_LIGHT);
+        JPanel formPanel = buildForm();
+        formPanel.setPreferredSize(new Dimension(480, Integer.MAX_VALUE));
+        formPanel.setMinimumSize(new Dimension(480, 0));
+        formPanel.setMaximumSize(new Dimension(480, Integer.MAX_VALUE));
+        center.add(formPanel, BorderLayout.WEST);
+        center.add(buildTableArea(), BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
     }
 
     // ── Tạo dữ liệu mẫu ──────────────────────────────────────────
@@ -117,7 +118,11 @@ public class ContractPanel extends JPanel {
 
     // ── FORM nhập liệu ────────────────────────────────────────────
     private JPanel buildForm() {
-        JPanel wrapper = new JPanel(new BorderLayout());
+        JPanel wrapper = new JPanel(new BorderLayout()) {
+            @Override public Dimension getPreferredSize() { return new Dimension(480, super.getPreferredSize().height); }
+            @Override public Dimension getMinimumSize()  { return new Dimension(480, 0); }
+            @Override public Dimension getMaximumSize()  { return new Dimension(480, Integer.MAX_VALUE); }
+        };
         wrapper.setBackground(UITheme.WHITE);
         wrapper.setBorder(new MatteBorder(0, 0, 0, 1, UITheme.BORDER));
 
@@ -134,76 +139,71 @@ public class ContractPanel extends JPanel {
         sec.setAlignmentX(LEFT_ALIGNMENT);
 
         // Khởi tạo các trường nhập liệu
-        tfId          = UITheme.textField("HĐ0001");
-        tfStudentId   = UITheme.textField("SV001248");
-        tfStudentName = UITheme.textField("Họ và tên sinh viên");
-        tfStartDate   = UITheme.textField("dd/MM/yyyy");
-        tfEndDate     = UITheme.textField("dd/MM/yyyy");
-        tfFee         = UITheme.textField("850000");
-        tfNote        = UITheme.textField("Ghi chú thêm...");
+        tfId          = UITheme.textField("");
+        tfStudentId   = UITheme.textField("");
+        tfStudentName = UITheme.textField("");
+        tfStartDate   = UITheme.textField("");
+        tfEndDate     = UITheme.textField("");
+        tfFee         = UITheme.textField("");
+        tfNote        = UITheme.textField("");
 
-        // Lấy danh sách phòng từ DataStore
         String[] roomIds = DatabaseService.getAllRooms().stream()
             .map(r -> r.getId()).toArray(String[]::new);
         cbRoom   = UITheme.comboBox(roomIds);
         cbStatus = UITheme.comboBox(STATUSES);
 
-        // Tự động điền mã HĐ tiếp theo
         tfId.setText(nextContractId());
 
-        // Khi nhập mã SV → tự điền tên SV
         tfStudentId.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
+            @Override public void focusLost(FocusEvent e) {
                 autoFillStudentName(tfStudentId.getText().trim());
             }
         });
 
-        // Grid 2 cột cho các trường
-        JPanel grid = new JPanel(new GridLayout(0, 2, 8, 8));
-        grid.setOpaque(false);
-        grid.setAlignmentX(LEFT_ALIGNMENT);
-        grid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 9999));
+        // ── Row 1: Mã HĐ | Trạng thái ───────────────────────────
+        JPanel row1 = makeRow2(
+            makeFieldPanel("MÃ HỢP ĐỒNG *",  tfId),
+            makeFieldPanel("TRẠNG THÁI",      cbStatus)
+        );
 
-        addField(grid, "Mã hợp đồng *", tfId);
-        addField(grid, "Trạng thái",     cbStatus);
-        addField(grid, "Mã sinh viên *", tfStudentId);
-        addField(grid, "Phòng *",        cbRoom);
-        addField(grid, "Ngày bắt đầu *", tfStartDate);
-        addField(grid, "Ngày kết thúc *",tfEndDate);
-        addField(grid, "Tiền/tháng (đ)", tfFee);
+        // ── Row 2: Mã SV | Phòng ─────────────────────────────────
+        JPanel row2 = makeRow2(
+            makeFieldPanel("MÃ SINH VIÊN *",  tfStudentId),
+            makeFieldPanel("PHÒNG *",          cbRoom)
+        );
 
-        // Tên SV — full width
-        JPanel nameRow = singleRow("Tên sinh viên", tfStudentName);
+        // ── Row 3: Ngày BĐ | Ngày KT ────────────────────────────
+        JPanel row3 = makeRow2(
+            makeFieldPanel("NGÀY BẮT ĐẦU *",  tfStartDate),
+            makeFieldPanel("NGÀY KẾT THÚC *", tfEndDate)
+        );
 
-        // Ghi chú — full width
-        JPanel noteRow = singleRow("Ghi chú", tfNote);
+        // ── Row 4: Tiền/tháng (full width) ───────────────────────
+        JPanel row4 = makeRow1("TIỀN/THÁNG (Đ)", tfFee);
 
-        // ── Nút thao tác ─────────────────────────────────────────
+        // ── Row 5: Tên sinh viên (full width) ────────────────────
+        JPanel row5 = makeRow1("TÊN SINH VIÊN", tfStudentName);
+
+        // ── Row 6: Ghi chú (full width) ──────────────────────────
+        JPanel row6 = makeRow1("GHI CHÚ", tfNote);
+
+        // ── Nút thao tác hàng 1 ──────────────────────────────────
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        btnRow.setOpaque(false);
-        btnRow.setAlignmentX(LEFT_ALIGNMENT);
+        btnRow.setOpaque(false); btnRow.setAlignmentX(LEFT_ALIGNMENT);
         btnRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
+        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
+        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
+        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
+        btnRow.add(btnAdd); btnRow.add(btnEdit); btnRow.add(btnDelete); btnRow.add(btnReset);
 
-        JButton btnAdd    = UITheme.primaryBtn("➕ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("✏ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("🗑 Xóa");
-        JButton btnReset  = UITheme.outlineBtn("↺ Làm mới");
-
-        btnRow.add(btnAdd);
-        btnRow.add(btnEdit);
-        btnRow.add(btnDelete);
-        btnRow.add(btnReset);
-
-        // Nút xuất báo cáo
+        // ── Nút thao tác hàng 2 ──────────────────────────────────
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        btnRow2.setOpaque(false);
-        btnRow2.setAlignmentX(LEFT_ALIGNMENT);
+        btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnExpire = UITheme.dangerBtn("⚠ Chấm dứt HĐ");
-        JButton btnExport = UITheme.successBtn("📊 Xuất danh sách");
-        btnRow2.add(btnExpire);
-        btnRow2.add(btnExport);
+        JButton btnExpire = UITheme.dangerBtn("□ Chấm dứt HĐ");
+        JButton btnExport = UITheme.successBtn("□ Xuất danh sách");
+        btnRow2.add(btnExpire); btnRow2.add(btnExport);
 
         // Gắn sự kiện
         btnAdd.addActionListener(e    -> addContract());
@@ -217,14 +217,14 @@ public class ContractPanel extends JPanel {
 
         // Ghép form
         form.add(sec);
-        form.add(grid);
-        form.add(Box.createVerticalStrut(8));
-        form.add(nameRow);
-        form.add(Box.createVerticalStrut(6));
-        form.add(noteRow);
-        form.add(Box.createVerticalStrut(12));
-        form.add(btnRow);
-        form.add(Box.createVerticalStrut(6));
+        form.add(Box.createVerticalStrut(4));
+        form.add(row1); form.add(Box.createVerticalStrut(8));
+        form.add(row2); form.add(Box.createVerticalStrut(8));
+        form.add(row3); form.add(Box.createVerticalStrut(8));
+        form.add(row4); form.add(Box.createVerticalStrut(8));
+        form.add(row5); form.add(Box.createVerticalStrut(8));
+        form.add(row6); form.add(Box.createVerticalStrut(12));
+        form.add(btnRow); form.add(Box.createVerticalStrut(6));
         form.add(btnRow2);
 
         JScrollPane scroll = new JScrollPane(form);
@@ -234,24 +234,44 @@ public class ContractPanel extends JPanel {
         return wrapper;
     }
 
-    /** Tạo một hàng label + field chiếm full chiều ngang */
-    private JPanel singleRow(String label, JComponent field) {
+    /** Label trên + field dưới */
+    private JPanel makeFieldPanel(String label, JComponent field) {
         JPanel p = new JPanel(new BorderLayout(0, 4));
         p.setOpaque(false);
-        p.setAlignmentX(LEFT_ALIGNMENT);
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
-        p.add(UITheme.formLabel(label), BorderLayout.NORTH);
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(UITheme.FONT_LABEL);
+        lbl.setForeground(UITheme.TEXT_SECONDARY);
+        p.add(lbl, BorderLayout.NORTH);
         p.add(field, BorderLayout.CENTER);
         return p;
     }
 
-    /** Thêm một ô (label trên + field dưới) vào grid */
+    /** Hàng 2 cột */
+    private JPanel makeRow2(JPanel left, JPanel right) {
+        JPanel row = new JPanel(new GridLayout(1, 2, 8, 0));
+        row.setOpaque(false); row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        row.add(left); row.add(right);
+        return row;
+    }
+
+    /** Hàng full width */
+    private JPanel makeRow1(String label, JComponent field) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setOpaque(false); row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        row.add(makeFieldPanel(label, field), BorderLayout.CENTER);
+        return row;
+    }
+
+    /** @deprecated dùng makeFieldPanel thay thế */
+    private JPanel singleRow(String label, JComponent field) {
+        return makeRow1(label, field);
+    }
+
+    /** @deprecated dùng makeFieldPanel thay thế */
     private void addField(JPanel grid, String label, JComponent field) {
-        JPanel cell = new JPanel(new BorderLayout(0, 4));
-        cell.setOpaque(false);
-        cell.add(UITheme.formLabel(label), BorderLayout.NORTH);
-        cell.add(field, BorderLayout.CENTER);
-        grid.add(cell);
+        grid.add(makeFieldPanel(label, field));
     }
 
     // ── Khu vực bảng dữ liệu ─────────────────────────────────────
@@ -264,16 +284,16 @@ public class ContractPanel extends JPanel {
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         toolbar.setOpaque(false);
 
-        tfSearch = UITheme.textField("🔍  Tìm mã HĐ, mã SV, tên sinh viên...");
-        tfSearch.setPreferredSize(new Dimension(280, 36));
+        tfSearch = UITheme.textField("");
+        tfSearch.setPreferredSize(new Dimension(260, 36));
 
         JComboBox<String> cbFilter = UITheme.comboBox(
             new String[]{"Tất cả trạng thái", "Đang hiệu lực", "Đã hết hạn", "Đã chấm dứt", "Chờ ký kết"}
         );
         cbFilter.setPreferredSize(new Dimension(160, 36));
 
-        JButton btnRefresh = UITheme.outlineBtn("↺ Làm mới");
-        btnRefresh.setPreferredSize(new Dimension(100, 36));
+        JButton btnRefresh = UITheme.outlineBtn("□ Làm mới");
+        btnRefresh.setPreferredSize(new Dimension(110, 36));
 
         toolbar.add(tfSearch);
         toolbar.add(cbFilter);

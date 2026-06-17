@@ -1,18 +1,16 @@
 package com.sdms.ui.admin;
 
 import com.sdms.model.Utility;
-import com.sdms.utils.DataStore;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
-
-import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.swing.*;
+import javax.swing.border.*;
+import javax.swing.table.*;
 
 /**
  * Panel quản lý chỉ số điện nước hàng tháng.
@@ -49,15 +47,16 @@ public class UtilityPanel extends JPanel {
         initSampleData();
         add(buildHeader(), BorderLayout.NORTH);
 
-        JSplitPane split = new JSplitPane(
-            JSplitPane.HORIZONTAL_SPLIT, buildForm(), buildTableArea()
-        );
-        split.setDividerLocation(300);
-        split.setDividerSize(2);
-        split.setBackground(UITheme.BORDER);
-        split.setBorder(null);
-        split.setResizeWeight(0.25);
-        add(split, BorderLayout.CENTER);
+        // Fixed layout — form width locked, not draggable
+        JPanel center = new JPanel(new BorderLayout());
+        center.setBackground(UITheme.BG_LIGHT);
+        JPanel formPanel = buildForm();
+        formPanel.setPreferredSize(new Dimension(480, Integer.MAX_VALUE));
+        formPanel.setMinimumSize(new Dimension(480, 0));
+        formPanel.setMaximumSize(new Dimension(480, Integer.MAX_VALUE));
+        center.add(formPanel, BorderLayout.WEST);
+        center.add(buildTableArea(), BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
     }
 
     // ── Tạo dữ liệu mẫu ──────────────────────────────────────────
@@ -108,7 +107,11 @@ public class UtilityPanel extends JPanel {
 
     // ── FORM nhập liệu ────────────────────────────────────────────
     private JPanel buildForm() {
-        JPanel wrapper = new JPanel(new BorderLayout());
+        JPanel wrapper = new JPanel(new BorderLayout()) {
+            @Override public Dimension getPreferredSize() { return new Dimension(480, super.getPreferredSize().height); }
+            @Override public Dimension getMinimumSize()  { return new Dimension(480, 0); }
+            @Override public Dimension getMaximumSize()  { return new Dimension(480, Integer.MAX_VALUE); }
+        };
         wrapper.setBackground(UITheme.WHITE);
         wrapper.setBorder(new MatteBorder(0, 0, 0, 1, UITheme.BORDER));
 
@@ -125,27 +128,24 @@ public class UtilityPanel extends JPanel {
         sec.setAlignmentX(LEFT_ALIGNMENT);
 
         // Khởi tạo trường nhập
-        tfId         = UITheme.textField("UT0001");
-        tfMonth      = UITheme.textField("06/2026");
-        tfElecPrev   = UITheme.textField("Chỉ số điện đầu kỳ");
-        tfElecCurr   = UITheme.textField("Chỉ số điện cuối kỳ");
-        tfWaterPrev  = UITheme.textField("Chỉ số nước đầu kỳ");
-        tfWaterCurr  = UITheme.textField("Chỉ số nước cuối kỳ");
+        tfId         = UITheme.textField("");
+        tfMonth      = UITheme.textField("");
+        tfElecPrev   = UITheme.textField("");
+        tfElecCurr   = UITheme.textField("");
+        tfWaterPrev  = UITheme.textField("");
+        tfWaterCurr  = UITheme.textField("");
         tfElecPrice  = UITheme.textField(String.valueOf(Utility.DEFAULT_ELECTRIC_UNIT_PRICE));
         tfWaterPrice = UITheme.textField(String.valueOf(Utility.DEFAULT_WATER_UNIT_PRICE));
-        tfNote       = UITheme.textField("Ghi chú...");
+        tfNote       = UITheme.textField("");
 
-        // Danh sách phòng
-        String[] roomIds = 	DatabaseService.getAllRooms().stream()
+        String[] roomIds = DatabaseService.getAllRooms().stream()
             .map(r -> r.getId()).toArray(String[]::new);
         cbRoom = UITheme.comboBox(roomIds);
 
-        // Điền mã mới tự động
         tfId.setText(nextUtilityId());
         tfElecPrice.setText(String.valueOf(Utility.DEFAULT_ELECTRIC_UNIT_PRICE));
         tfWaterPrice.setText(String.valueOf(Utility.DEFAULT_WATER_UNIT_PRICE));
 
-        // Listener tính tiền preview khi nhập chỉ số
         KeyAdapter calcPreview = new KeyAdapter() {
             @Override public void keyReleased(KeyEvent e) { updatePreview(); }
         };
@@ -156,103 +156,52 @@ public class UtilityPanel extends JPanel {
         tfElecPrice.addKeyListener(calcPreview);
         tfWaterPrice.addKeyListener(calcPreview);
 
-        // Grid 2 cột
-        JPanel grid = new JPanel(new GridLayout(0, 2, 8, 8));
-        grid.setOpaque(false);
-        grid.setAlignmentX(LEFT_ALIGNMENT);
-        grid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 9999));
-
-        addField(grid, "Mã bản ghi",      tfId);
-        addField(grid, "Tháng *",         tfMonth);
-        addField(grid, "Phòng *",         cbRoom);
-        // Ô trống để giữ layout
-        grid.add(new JPanel() {{ setOpaque(false); }});
-
-        // Separator điện
-        JLabel elecSec = sectionLabel("⚡  ĐIỆN (kWh)");
-        // Separator nước
+        JPanel row1 = makeRow2(makeFieldPanel("MÃ BẢN GHI", tfId), makeFieldPanel("THÁNG *", tfMonth));
+        JPanel row2 = makeRow1("PHÒNG *", cbRoom);
+        JLabel elecSec  = sectionLabel("⚡  ĐIỆN (kWh)");
         JLabel waterSec = sectionLabel("💧  NƯỚC (m³)");
-
-        JPanel elecGrid = new JPanel(new GridLayout(1, 2, 8, 0));
-        elecGrid.setOpaque(false);
-        elecGrid.setAlignmentX(LEFT_ALIGNMENT);
-        elecGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
-        addField(elecGrid, "Chỉ số đầu kỳ", tfElecPrev);
-        addField(elecGrid, "Chỉ số cuối kỳ", tfElecCurr);
-
-        JPanel waterGrid = new JPanel(new GridLayout(1, 2, 8, 0));
-        waterGrid.setOpaque(false);
-        waterGrid.setAlignmentX(LEFT_ALIGNMENT);
-        waterGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
-        addField(waterGrid, "Chỉ số đầu kỳ", tfWaterPrev);
-        addField(waterGrid, "Chỉ số cuối kỳ", tfWaterCurr);
-
-        JPanel priceGrid = new JPanel(new GridLayout(1, 2, 8, 0));
-        priceGrid.setOpaque(false);
-        priceGrid.setAlignmentX(LEFT_ALIGNMENT);
-        priceGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
-        addField(priceGrid, "Đơn giá điện (đ/kWh)", tfElecPrice);
-        addField(priceGrid, "Đơn giá nước (đ/m³)",  tfWaterPrice);
-
-        // Panel preview tính tiền
+        JPanel elecGrid  = makeRow2(makeFieldPanel("CHỈ SỐ ĐẦU KỲ", tfElecPrev),  makeFieldPanel("CHỈ SỐ CUỐI KỲ", tfElecCurr));
+        JPanel waterGrid = makeRow2(makeFieldPanel("CHỈ SỐ ĐẦU KỲ", tfWaterPrev), makeFieldPanel("CHỈ SỐ CUỐI KỲ", tfWaterCurr));
+        JPanel priceGrid = makeRow2(makeFieldPanel("ĐƠN GIÁ ĐIỆN (đ/kWh)", tfElecPrice), makeFieldPanel("ĐƠN GIÁ NƯỚC (đ/m³)", tfWaterPrice));
         JPanel preview = buildPreviewPanel();
+        JPanel noteRow = makeRow1("GHI CHÚ", tfNote);
 
-        // Ghi chú full width
-        JPanel noteRow = singleRow("Ghi chú", tfNote);
-
-        // Nút thao tác
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        btnRow.setOpaque(false);
-        btnRow.setAlignmentX(LEFT_ALIGNMENT);
+        btnRow.setOpaque(false); btnRow.setAlignmentX(LEFT_ALIGNMENT);
         btnRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-
-        JButton btnAdd    = UITheme.primaryBtn("➕ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("✏ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("🗑 Xóa");
-        JButton btnReset  = UITheme.outlineBtn("↺ Làm mới");
+        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
+        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
+        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
+        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
         btnRow.add(btnAdd); btnRow.add(btnEdit); btnRow.add(btnDelete); btnRow.add(btnReset);
 
-        // Nút chốt chỉ số
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        btnRow2.setOpaque(false);
-        btnRow2.setAlignmentX(LEFT_ALIGNMENT);
+        btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnConfirm = UITheme.successBtn("✓ Chốt chỉ số");
-        JButton btnExport  = UITheme.purpleBtn("📊 Xuất báo cáo");
+        JButton btnConfirm = UITheme.successBtn("□ Chốt chỉ số");
+        JButton btnExport  = UITheme.purpleBtn("□ Xuất báo cáo");
         btnRow2.add(btnConfirm); btnRow2.add(btnExport);
 
-        // Gắn sự kiện
         btnAdd.addActionListener(e    -> addUtility());
         btnEdit.addActionListener(e   -> editUtility());
         btnDelete.addActionListener(e -> deleteUtility());
         btnReset.addActionListener(e  -> clearForm());
         btnConfirm.addActionListener(e-> confirmUtility());
         btnExport.addActionListener(e -> JOptionPane.showMessageDialog(this,
-            "✅ Đã xuất báo cáo điện nước thành công!", "Thông báo",
-            JOptionPane.INFORMATION_MESSAGE));
+            "✅ Đã xuất báo cáo điện nước thành công!", "Thông báo", JOptionPane.INFORMATION_MESSAGE));
 
-        // Ghép form
-        form.add(sec);
-        form.add(grid);
-        form.add(Box.createVerticalStrut(8));
-        form.add(elecSec);
-        form.add(Box.createVerticalStrut(4));
-        form.add(elecGrid);
-        form.add(Box.createVerticalStrut(8));
-        form.add(waterSec);
-        form.add(Box.createVerticalStrut(4));
-        form.add(waterGrid);
-        form.add(Box.createVerticalStrut(8));
-        form.add(sectionLabel("💰  ĐƠN GIÁ"));
-        form.add(Box.createVerticalStrut(4));
-        form.add(priceGrid);
-        form.add(Box.createVerticalStrut(10));
-        form.add(preview);
-        form.add(Box.createVerticalStrut(8));
-        form.add(noteRow);
-        form.add(Box.createVerticalStrut(12));
-        form.add(btnRow);
-        form.add(Box.createVerticalStrut(6));
+        form.add(sec);       form.add(Box.createVerticalStrut(4));
+        form.add(row1);      form.add(Box.createVerticalStrut(8));
+        form.add(row2);      form.add(Box.createVerticalStrut(8));
+        form.add(elecSec);   form.add(Box.createVerticalStrut(4));
+        form.add(elecGrid);  form.add(Box.createVerticalStrut(8));
+        form.add(waterSec);  form.add(Box.createVerticalStrut(4));
+        form.add(waterGrid); form.add(Box.createVerticalStrut(8));
+        form.add(sectionLabel("💰  ĐƠN GIÁ")); form.add(Box.createVerticalStrut(4));
+        form.add(priceGrid); form.add(Box.createVerticalStrut(10));
+        form.add(preview);   form.add(Box.createVerticalStrut(8));
+        form.add(noteRow);   form.add(Box.createVerticalStrut(12));
+        form.add(btnRow);    form.add(Box.createVerticalStrut(6));
         form.add(btnRow2);
 
         JScrollPane scroll = new JScrollPane(form);
@@ -332,23 +281,21 @@ public class UtilityPanel extends JPanel {
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         toolbar.setOpaque(false);
 
-        tfSearch = UITheme.textField("🔍  Tìm theo mã, phòng, tháng...");
+        tfSearch = UITheme.textField("");
         tfSearch.setPreferredSize(new Dimension(240, 36));
 
-        // Lọc theo tháng
         JComboBox<String> cbMonthFilter = UITheme.comboBox(
             new String[]{"Tất cả tháng", "06/2026", "05/2026", "04/2026", "03/2026"}
         );
         cbMonthFilter.setPreferredSize(new Dimension(130, 36));
 
-        // Lọc theo trạng thái chốt
         JComboBox<String> cbConfirmFilter = UITheme.comboBox(
-            new String[]{"Tất cả", "✓ Đã chốt", "⏳ Chưa chốt"}
+            new String[]{"Tất cả", "Đã chốt", "Chưa chốt"}
         );
         cbConfirmFilter.setPreferredSize(new Dimension(120, 36));
 
-        JButton btnRefresh = UITheme.outlineBtn("↺");
-        btnRefresh.setPreferredSize(new Dimension(44, 36));
+        JButton btnRefresh = UITheme.outlineBtn("□ Làm mới");
+        btnRefresh.setPreferredSize(new Dimension(100, 36));
 
         toolbar.add(tfSearch);
         toolbar.add(cbMonthFilter);
@@ -652,22 +599,39 @@ public class UtilityPanel extends JPanel {
         return l;
     }
 
-    private JPanel singleRow(String label, JComponent field) {
+    private JPanel makeFieldPanel(String label, JComponent field) {
         JPanel p = new JPanel(new BorderLayout(0, 4));
         p.setOpaque(false);
-        p.setAlignmentX(LEFT_ALIGNMENT);
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
-        p.add(UITheme.formLabel(label), BorderLayout.NORTH);
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(UITheme.FONT_LABEL);
+        lbl.setForeground(UITheme.TEXT_SECONDARY);
+        p.add(lbl, BorderLayout.NORTH);
         p.add(field, BorderLayout.CENTER);
         return p;
     }
 
+    private JPanel makeRow2(JPanel left, JPanel right) {
+        JPanel row = new JPanel(new GridLayout(1, 2, 8, 0));
+        row.setOpaque(false); row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        row.add(left); row.add(right);
+        return row;
+    }
+
+    private JPanel makeRow1(String label, JComponent field) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setOpaque(false); row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        row.add(makeFieldPanel(label, field), BorderLayout.CENTER);
+        return row;
+    }
+
+    private JPanel singleRow(String label, JComponent field) {
+        return makeRow1(label, field);
+    }
+
     private void addField(JPanel grid, String label, JComponent field) {
-        JPanel cell = new JPanel(new BorderLayout(0, 4));
-        cell.setOpaque(false);
-        cell.add(UITheme.formLabel(label), BorderLayout.NORTH);
-        cell.add(field, BorderLayout.CENTER);
-        grid.add(cell);
+        grid.add(makeFieldPanel(label, field));
     }
 
     private void showWarn(String msg) {

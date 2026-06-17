@@ -3,13 +3,13 @@ package com.sdms.ui.admin;
 import com.sdms.model.User;
 import com.sdms.ui.login.LoginFrame;
 import com.sdms.utils.UITheme;
-import javax.swing.*;
-import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import javax.swing.*;
+import javax.swing.border.*;
 
 public class AdminFrame extends JFrame {
 
@@ -175,7 +175,7 @@ public class AdminFrame extends JFrame {
 
         pane.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
-                if (name.equals("Đăng xuất")) { confirmExit(); return; }
+                if (name.equals("Đăng xuất")) { confirmLogout(); return; }
                 activeMenu = name;
                 switchPanel(name);
                 rebuildSidebar();
@@ -226,7 +226,7 @@ public class AdminFrame extends JFrame {
     }
 
     private JPanel buildHeader() {
-        JPanel header = new JPanel(null) {
+        JPanel header = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
                 g.setColor(UITheme.WHITE);
                 g.fillRect(0, 0, getWidth(), getHeight());
@@ -235,43 +235,18 @@ public class AdminFrame extends JFrame {
             }
         };
         header.setPreferredSize(new Dimension(0, UITheme.HEADER_HEIGHT));
-
-        // Search box
-        JPanel search = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0)) {
-            @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(UITheme.BG_SECONDARY);
-                g2.fill(new RoundRectangle2D.Float(0,0,getWidth(),getHeight(),8,8));
-                g2.setColor(UITheme.BORDER);
-                g2.setStroke(new BasicStroke(0.5f));
-                g2.draw(new RoundRectangle2D.Float(0,0,getWidth()-1,getHeight()-1,8,8));
-                g2.dispose();
-            }
-        };
-        search.setOpaque(false);
-        JLabel searchIcon = new JLabel("🔍");
-        JTextField tfSearch = new JTextField("Tìm kiếm sinh viên, phòng...");
-        tfSearch.setFont(UITheme.FONT_BODY); tfSearch.setForeground(UITheme.TEXT_MUTED);
-        tfSearch.setOpaque(false); tfSearch.setBorder(null);
-        tfSearch.setPreferredSize(new Dimension(240, 30));
-        tfSearch.addFocusListener(new FocusAdapter() {
-            public void focusGained(FocusEvent e) { if ("Tìm kiếm sinh viên, phòng...".equals(tfSearch.getText())) { tfSearch.setText(""); tfSearch.setForeground(UITheme.TEXT_PRIMARY); } }
-            public void focusLost(FocusEvent e)   { if (tfSearch.getText().isEmpty()) { tfSearch.setText("Tìm kiếm sinh viên, phòng..."); tfSearch.setForeground(UITheme.TEXT_MUTED); } }
-        });
-        search.add(searchIcon); search.add(tfSearch);
-        search.setBounds(16, 12, 300, 34);
-
-        // Notification bell
-        JLabel bell = new JLabel("🔔");
-        bell.setFont(new Font("Segoe UI",Font.PLAIN,18));
-        bell.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        bell.setBounds(336, 16, 30, 26);
+        header.setOpaque(false);
+        header.setBorder(new javax.swing.border.EmptyBorder(0, 16, 0, 16));
 
         // Clock
         lblClock = new JLabel("00:00");
         lblClock.setFont(UITheme.FONT_SMALL);
         lblClock.setForeground(UITheme.TEXT_SECONDARY);
+
+        // Notification bell
+        JLabel bell = new JLabel("🔔");
+        bell.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+        bell.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         // Avatar
         JPanel avatar = new JPanel() {
@@ -281,13 +256,13 @@ public class AdminFrame extends JFrame {
                 g2.setColor(UITheme.PRIMARY);
                 g2.fillOval(0, 0, getWidth(), getHeight());
                 g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI",Font.BOLD,13));
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 13));
                 FontMetrics fm = g2.getFontMetrics();
                 String initials = "AD";
                 g2.drawString(initials, (getWidth()-fm.stringWidth(initials))/2, (getHeight()+fm.getAscent()-fm.getDescent())/2);
                 g2.dispose();
             }
-            @Override public Dimension getPreferredSize() { return new Dimension(34,34); }
+            @Override public Dimension getPreferredSize() { return new Dimension(34, 34); }
         };
 
         JLabel lblAdmin = new JLabel("<html><b style='color:#0f172a'>"+currentUser.getFullName()+"</b><br><span style='color:#64748b;font-size:10px'>Quản trị viên</span></html>");
@@ -295,11 +270,12 @@ public class AdminFrame extends JFrame {
 
         JPanel rightBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         rightBox.setOpaque(false);
-        rightBox.add(lblClock); rightBox.add(bell); rightBox.add(avatar); rightBox.add(lblAdmin);
-        rightBox.setBounds(370, 8, 500, 42);
+        rightBox.add(lblClock);
+        rightBox.add(bell);
+        rightBox.add(avatar);
+        rightBox.add(lblAdmin);
 
-        header.add(search);
-        header.add(rightBox);
+        header.add(rightBox, BorderLayout.EAST);
         return header;
     }
 
@@ -337,12 +313,25 @@ public class AdminFrame extends JFrame {
     }
 
     private void confirmExit() {
+        // Nhấn X → đóng ứng dụng hoàn toàn
         int r = JOptionPane.showConfirmDialog(this,
-            "Bạn có chắc muốn đăng xuất không?", "Xác nhận",
+            "Bạn có chắc muốn thoát ứng dụng không?", "Xác nhận thoát",
             JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
+            System.exit(0);
+        }
+    }
+
+    private void confirmLogout() {
+        int r = JOptionPane.showConfirmDialog(this,
+            "Bạn có chắc muốn đăng xuất không?", "Xác nhận đăng xuất",
+            JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (r == JOptionPane.YES_OPTION) {
+            final int savedState = getExtendedState();
             dispose();
-            new LoginFrame().setVisible(true);
+            LoginFrame login = new LoginFrame();
+            login.setVisible(true);
+            SwingUtilities.invokeLater(() -> login.setExtendedState(savedState));
         }
     }
 }
