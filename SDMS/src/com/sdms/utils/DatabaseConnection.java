@@ -20,11 +20,11 @@ public class DatabaseConnection {
 
     // URL kết nối — trustServerCertificate=true tránh lỗi SSL với SQL Server cục bộ
     private static final String URL =
-            "jdbc:sqlserver://" + SERVER
-            + ";databaseName=" + DATABASE
-            + ";encrypt=true"
-            + ";trustServerCertificate=true"
-            + ";sendStringParametersAsUnicode=true";   // quan trọng cho tiếng Việt
+        "jdbc:sqlserver://" + SERVER
+        + ";databaseName=" + DATABASE
+        + ";encrypt=true"
+        + ";trustServerCertificate=true"
+        + ";sendStringParametersAsUnicode=true";  // quan trọng cho tiếng Việt
 
     private static Connection connection = null;
 
@@ -56,7 +56,11 @@ public class DatabaseConnection {
     }
 
     // ── Kiểm tra kết nối — gọi khi khởi động ───────────────────
+<<<<<<< HEAD
     public static boolean testConnection() {
+=======
+   public static boolean testConnection() {
+>>>>>>> 4077615da85250227b64e03ed9145811fbc192f7
     try {
         System.out.println("SERVER = " + SERVER);
         System.out.println("URL = " + URL);

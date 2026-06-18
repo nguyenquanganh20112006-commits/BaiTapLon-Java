@@ -1,24 +1,22 @@
 package com.sdms.ui.admin;
 
-import com.sdms.model.Student;
 import com.sdms.model.Violation;
-import com.sdms.utils.DataStore;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
-
-import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.swing.*;
+import javax.swing.border.*;
+import javax.swing.table.*;
 
 /**
  * Panel quản lý vi phạm nội quy ký túc xá.
  * Hỗ trợ: Thêm, Sửa, Xóa, Tìm kiếm, Lọc theo mức độ/trạng thái, Xử lý vi phạm.
+ * Dữ liệu được tải trực tiếp từ SQL Server qua DatabaseService.
  */
 public class ViolationPanel extends JPanel {
 
@@ -50,57 +48,33 @@ public class ViolationPanel extends JPanel {
     public ViolationPanel() {
         setBackground(UITheme.BG_LIGHT);
         setLayout(new BorderLayout());
-        initSampleData();
+        loadDataFromDatabase();          // ← tải từ SQL Server thay vì dữ liệu ảo
         add(buildHeader(), BorderLayout.NORTH);
 
-        JSplitPane split = new JSplitPane(
-            JSplitPane.HORIZONTAL_SPLIT, buildForm(), buildTableArea()
-        );
-        split.setDividerLocation(320);
-        split.setDividerSize(2);
-        split.setBackground(UITheme.BORDER);
-        split.setBorder(null);
-        split.setResizeWeight(0.27);
-        add(split, BorderLayout.CENTER);
+        // Fixed layout — form width locked, not draggable
+        JPanel center = new JPanel(new BorderLayout());
+        center.setBackground(UITheme.BG_LIGHT);
+        JPanel formPanel = buildForm();
+        formPanel.setPreferredSize(new Dimension(480, Integer.MAX_VALUE));
+        formPanel.setMinimumSize(new Dimension(480, 0));
+        formPanel.setMaximumSize(new Dimension(480, Integer.MAX_VALUE));
+        center.add(formPanel, BorderLayout.WEST);
+        center.add(buildTableArea(), BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
     }
 
-    // ── Tạo dữ liệu mẫu ──────────────────────────────────────────
-    private void initSampleData() {
-        violations.add(new Violation("VP0001","SV001248","Nguyễn Văn An",  "A301",
-            LocalDate.of(2026,5,10), "Gây tiếng ồn",
-            "Mở nhạc to sau 23h, ảnh hưởng các phòng xung quanh.",
-            Violation.Severity.LOW, 0, "Admin", Violation.Status.PROCESSED, "Đã nhắc nhở"));
-
-        violations.add(new Violation("VP0002","SV001247","Trần Thị Bình",  "B204",
-            LocalDate.of(2026,5,18), "Mang khách lạ vào khu nội trú",
-            "Mang bạn trai không đăng ký vào phòng sau 22h.",
-            Violation.Severity.MEDIUM, 200_000, "Admin", Violation.Status.PROCESSED, ""));
-
-        violations.add(new Violation("VP0003","SV001242","Đặng Minh Tuấn", "B102",
-            LocalDate.of(2026,6,1), "Hút thuốc trong phòng",
-            "Hút thuốc lá trong phòng ngủ, vi phạm nội quy phòng cháy chữa cháy.",
-            Violation.Severity.HIGH, 500_000, "Admin", Violation.Status.PENDING, ""));
-
-        violations.add(new Violation("VP0004","SV001243","Vũ Thị Lan",     "A204",
-            LocalDate.of(2026,6,3), "Vi phạm giờ giấc",
-            "Về ký túc xá sau 00h mà không xin phép.",
-            Violation.Severity.LOW, 0, "", Violation.Status.PENDING, ""));
-
-        violations.add(new Violation("VP0005","SV001249","Nguyễn Thị Lan Anh","A301",
-            LocalDate.of(2026,6,5), "Sử dụng thiết bị điện công suất lớn",
-            "Dùng bếp điện trong phòng, vi phạm nội quy an toàn điện.",
-            Violation.Severity.MEDIUM, 300_000, "Admin", Violation.Status.APPEALING,
-            "Sinh viên đang khiếu nại"));
-
-        violations.add(new Violation("VP0006","SV001241","Bùi Thị Mai",    "C305",
-            LocalDate.of(2026,4,20), "Vi phạm vệ sinh chung",
-            "Không vệ sinh khu vực chung theo lịch phân công.",
-            Violation.Severity.LOW, 0, "Admin", Violation.Status.PROCESSED, ""));
-
-        violations.add(new Violation("VP0007","SV001240","Ngô Quốc Hùng",  "D201",
-            LocalDate.of(2026,5,28), "Phá hỏng tài sản",
-            "Làm gãy khóa cửa phòng, cần bồi thường.",
-            Violation.Severity.HIGH, 800_000, "Admin", Violation.Status.PENDING, ""));
+    // ── Tải dữ liệu từ SQL Server ─────────────────────────────────
+    private void loadDataFromDatabase() {
+        violations.clear();
+        try {
+            List<Violation> dbList = DatabaseService.getAllViolations();
+            violations.addAll(dbList);
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                "⚠ Không thể tải danh sách vi phạm từ cơ sở dữ liệu!\n" + e.getMessage(),
+                "Lỗi kết nối", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     // ── Header ────────────────────────────────────────────────────
@@ -136,7 +110,11 @@ public class ViolationPanel extends JPanel {
 
     // ── FORM nhập liệu ────────────────────────────────────────────
     private JPanel buildForm() {
-        JPanel wrapper = new JPanel(new BorderLayout());
+        JPanel wrapper = new JPanel(new BorderLayout()) {
+            @Override public Dimension getPreferredSize() { return new Dimension(480, super.getPreferredSize().height); }
+            @Override public Dimension getMinimumSize()  { return new Dimension(480, 0); }
+            @Override public Dimension getMaximumSize()  { return new Dimension(480, Integer.MAX_VALUE); }
+        };
         wrapper.setBackground(UITheme.WHITE);
         wrapper.setBorder(new MatteBorder(0, 0, 0, 1, UITheme.BORDER));
 
@@ -153,16 +131,16 @@ public class ViolationPanel extends JPanel {
         sec.setAlignmentX(LEFT_ALIGNMENT);
 
         // Khởi tạo fields
-        tfId          = UITheme.textField("VP0001");
-        tfStudentId   = UITheme.textField("Mã sinh viên");
-        tfStudentName = UITheme.textField("Tên sinh viên");
-        tfDate        = UITheme.textField("dd/MM/yyyy");
-        tfFine        = UITheme.textField("0 (không phạt tiền)");
-        tfHandledBy   = UITheme.textField("Người xử lý");
-        tfNote        = UITheme.textField("Ghi chú...");
+        tfId          = UITheme.textField("");
+        tfStudentId   = UITheme.textField("");
+        tfStudentName = UITheme.textField("");
+        tfDate        = UITheme.textField("");
+        tfFine        = UITheme.textField("");
+        tfHandledBy   = UITheme.textField("");
+        tfNote        = UITheme.textField("");
 
         // Comboboxes
-        String[] roomIds = 	DatabaseService.getAllRooms().stream()
+        String[] roomIds = DatabaseService.getAllRooms().stream()
             .map(r -> r.getId()).toArray(String[]::new);
         cbRoom     = UITheme.comboBox(roomIds);
         cbType     = UITheme.comboBox(Violation.VIOLATION_TYPES);
@@ -185,69 +163,56 @@ public class ViolationPanel extends JPanel {
         descScroll.setAlignmentX(LEFT_ALIGNMENT);
         descScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
 
-        // Tự động điền khi mất focus mã SV
         tfStudentId.addFocusListener(new FocusAdapter() {
             @Override public void focusLost(FocusEvent e) {
                 autoFillStudent(tfStudentId.getText().trim());
             }
         });
 
-        // Mức độ → gợi ý tiền phạt
         cbSeverity.addActionListener(e -> suggestFine());
 
-        // Điền mã tiếp theo
-        tfId.setText(nextViolationId());
+        tfId.setText(DatabaseService.nextViolationId());  // lấy ID tiếp theo từ DB
         tfDate.setText(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
 
-        // Grid 2 cột
-        JPanel grid = new JPanel(new GridLayout(0, 2, 8, 8));
-        grid.setOpaque(false);
-        grid.setAlignmentX(LEFT_ALIGNMENT);
-        grid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 9999));
-
-        addField(grid, "Mã vi phạm",    tfId);
-        addField(grid, "Ngày vi phạm *",tfDate);
-        addField(grid, "Mã sinh viên *",tfStudentId);
-        addField(grid, "Phòng",         cbRoom);
-        addField(grid, "Loại vi phạm *",cbType);
-        addField(grid, "Mức độ *",      cbSeverity);
-        addField(grid, "Tiền phạt (đ)", tfFine);
-        addField(grid, "Trạng thái",    cbStatus);
-        addField(grid, "Người xử lý",   tfHandledBy);
-
-        // Tên SV full width
-        JPanel nameRow = singleRow("Tên sinh viên", tfStudentName);
+        // ── Rows ─────────────────────────────────────────────────
+        JPanel row1 = makeRow2(makeFieldPanel("MÃ VI PHẠM",     tfId),
+                               makeFieldPanel("NGÀY VI PHẠM *", tfDate));
+        JPanel row2 = makeRow2(makeFieldPanel("MÃ SINH VIÊN *", tfStudentId),
+                               makeFieldPanel("PHÒNG",           cbRoom));
+        JPanel row3 = makeRow2(makeFieldPanel("LOẠI VI PHẠM *", cbType),
+                               makeFieldPanel("MỨC ĐỘ *",       cbSeverity));
+        JPanel row4 = makeRow2(makeFieldPanel("TIỀN PHẠT (Đ)",  tfFine),
+                               makeFieldPanel("TRẠNG THÁI",     cbStatus));
+        JPanel row5 = makeRow1("NGƯỜI XỬ LÝ", tfHandledBy);
+        JPanel row6 = makeRow1("TÊN SINH VIÊN", tfStudentName);
 
         // Mô tả full width
         JPanel descRow = new JPanel(new BorderLayout(0, 4));
-        descRow.setOpaque(false);
-        descRow.setAlignmentX(LEFT_ALIGNMENT);
+        descRow.setOpaque(false); descRow.setAlignmentX(LEFT_ALIGNMENT);
         descRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
-        descRow.add(UITheme.formLabel("Mô tả chi tiết"), BorderLayout.NORTH);
+        JLabel descLbl = new JLabel("MÔ TẢ CHI TIẾT");
+        descLbl.setFont(UITheme.FONT_LABEL); descLbl.setForeground(UITheme.TEXT_SECONDARY);
+        descRow.add(descLbl, BorderLayout.NORTH);
         descRow.add(descScroll, BorderLayout.CENTER);
 
-        // Ghi chú full width
-        JPanel noteRow = singleRow("Ghi chú", tfNote);
+        JPanel noteRow = makeRow1("GHI CHÚ", tfNote);
 
-        // Nút thao tác
+        // Nút thao tác hàng 1
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        btnRow.setOpaque(false);
-        btnRow.setAlignmentX(LEFT_ALIGNMENT);
+        btnRow.setOpaque(false); btnRow.setAlignmentX(LEFT_ALIGNMENT);
         btnRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-
-        JButton btnAdd    = UITheme.primaryBtn("➕ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("✏ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("🗑 Xóa");
-        JButton btnReset  = UITheme.outlineBtn("↺ Làm mới");
+        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
+        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
+        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
+        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
         btnRow.add(btnAdd); btnRow.add(btnEdit); btnRow.add(btnDelete); btnRow.add(btnReset);
 
         // Nút xử lý vi phạm
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        btnRow2.setOpaque(false);
-        btnRow2.setAlignmentX(LEFT_ALIGNMENT);
+        btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnProcess = UITheme.successBtn("✓ Đánh dấu đã xử lý");
-        JButton btnExport  = UITheme.purpleBtn("📊 Xuất báo cáo");
+        JButton btnProcess = UITheme.successBtn("□ Đánh dấu đã xử lý");
+        JButton btnExport  = UITheme.purpleBtn("□ Xuất báo cáo");
         btnRow2.add(btnProcess); btnRow2.add(btnExport);
 
         // Gắn sự kiện
@@ -261,17 +226,16 @@ public class ViolationPanel extends JPanel {
             JOptionPane.INFORMATION_MESSAGE));
 
         // Ghép form
-        form.add(sec);
-        form.add(grid);
-        form.add(Box.createVerticalStrut(8));
-        form.add(nameRow);
-        form.add(Box.createVerticalStrut(6));
-        form.add(descRow);
-        form.add(Box.createVerticalStrut(6));
-        form.add(noteRow);
-        form.add(Box.createVerticalStrut(12));
-        form.add(btnRow);
-        form.add(Box.createVerticalStrut(6));
+        form.add(sec);       form.add(Box.createVerticalStrut(4));
+        form.add(row1);      form.add(Box.createVerticalStrut(8));
+        form.add(row2);      form.add(Box.createVerticalStrut(8));
+        form.add(row3);      form.add(Box.createVerticalStrut(8));
+        form.add(row4);      form.add(Box.createVerticalStrut(8));
+        form.add(row5);      form.add(Box.createVerticalStrut(8));
+        form.add(row6);      form.add(Box.createVerticalStrut(8));
+        form.add(descRow);   form.add(Box.createVerticalStrut(6));
+        form.add(noteRow);   form.add(Box.createVerticalStrut(12));
+        form.add(btnRow);    form.add(Box.createVerticalStrut(6));
         form.add(btnRow2);
 
         JScrollPane scroll = new JScrollPane(form);
@@ -291,8 +255,8 @@ public class ViolationPanel extends JPanel {
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         toolbar.setOpaque(false);
 
-        tfSearch = UITheme.textField("🔍  Tìm mã VP, mã SV, tên, loại vi phạm...");
-        tfSearch.setPreferredSize(new Dimension(260, 36));
+        tfSearch = UITheme.textField("");
+        tfSearch.setPreferredSize(new Dimension(240, 36));
 
         JComboBox<String> cbSevFilter = UITheme.comboBox(
             new String[]{"Tất cả mức độ", "Nhẹ", "Trung bình", "Nặng", "Rất nặng"}
@@ -304,8 +268,8 @@ public class ViolationPanel extends JPanel {
         );
         cbStatusFilter.setPreferredSize(new Dimension(150, 36));
 
-        JButton btnRefresh = UITheme.outlineBtn("↺");
-        btnRefresh.setPreferredSize(new Dimension(44, 36));
+        JButton btnRefresh = UITheme.outlineBtn("□ Làm mới");
+        btnRefresh.setPreferredSize(new Dimension(100, 36));
 
         toolbar.add(tfSearch);
         toolbar.add(cbSevFilter);
@@ -336,7 +300,7 @@ public class ViolationPanel extends JPanel {
         for (int i = 0; i < widths.length; i++)
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
 
-        // Renderers màu cho các cột quan trọng
+        // Renderers màu
         table.getColumnModel().getColumn(0).setCellRenderer(idRenderer());
         table.getColumnModel().getColumn(6).setCellRenderer(severityRenderer());
         table.getColumnModel().getColumn(7).setCellRenderer(fineRenderer());
@@ -377,6 +341,7 @@ public class ViolationPanel extends JPanel {
             tfSearch.setText("");
             cbSevFilter.setSelectedIndex(0);
             cbStatusFilter.setSelectedIndex(0);
+            loadDataFromDatabase();     // ← tải lại từ DB
             refreshTable(violations);
         });
 
@@ -419,7 +384,7 @@ public class ViolationPanel extends JPanel {
 
     // ── Logic CRUD ────────────────────────────────────────────────
 
-    /** Thêm vi phạm mới */
+    /** Thêm vi phạm mới vào DB */
     private void addViolation() {
         if (tfStudentId.getText().trim().isEmpty()) {
             showWarn("Vui lòng nhập mã sinh viên!"); return;
@@ -446,13 +411,19 @@ public class ViolationPanel extends JPanel {
             statusFromText((String) cbStatus.getSelectedItem()),
             tfNote.getText().trim()
         );
-        violations.add(v);
-        refreshTable(violations);
-        clearForm();
-        showSuccess("Ghi nhận vi phạm thành công!");
+
+        boolean ok = DatabaseService.addViolation(v);
+        if (ok) {
+            loadDataFromDatabase();
+            refreshTable(violations);
+            clearForm();
+            showSuccess("Ghi nhận vi phạm thành công!");
+        } else {
+            showWarn("Không thể lưu vi phạm vào cơ sở dữ liệu!");
+        }
     }
 
-    /** Cập nhật vi phạm đang chọn */
+    /** Cập nhật vi phạm đang chọn vào DB */
     private void editViolation() {
         if (editingViolation == null) {
             showWarn("Chọn vi phạm cần sửa từ bảng!"); return;
@@ -472,11 +443,17 @@ public class ViolationPanel extends JPanel {
         editingViolation.setStatus(statusFromText((String) cbStatus.getSelectedItem()));
         editingViolation.setNote(tfNote.getText().trim());
 
-        refreshTable(violations);
-        showSuccess("Cập nhật vi phạm thành công!");
+        boolean ok = DatabaseService.updateViolation(editingViolation);
+        if (ok) {
+            loadDataFromDatabase();
+            refreshTable(violations);
+            showSuccess("Cập nhật vi phạm thành công!");
+        } else {
+            showWarn("Không thể cập nhật vi phạm trong cơ sở dữ liệu!");
+        }
     }
 
-    /** Xóa vi phạm đang chọn */
+    /** Xóa vi phạm đang chọn khỏi DB */
     private void deleteViolation() {
         if (editingViolation == null) {
             showWarn("Chọn vi phạm cần xóa!"); return;
@@ -486,14 +463,19 @@ public class ViolationPanel extends JPanel {
             + " của " + editingViolation.getStudentName() + "?",
             "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
-            violations.remove(editingViolation);
-            editingViolation = null;
-            refreshTable(violations);
-            clearForm();
+            boolean ok = DatabaseService.deleteViolation(editingViolation.getId());
+            if (ok) {
+                editingViolation = null;
+                loadDataFromDatabase();
+                refreshTable(violations);
+                clearForm();
+            } else {
+                showWarn("Không thể xóa vi phạm trong cơ sở dữ liệu!");
+            }
         }
     }
 
-    /** Đánh dấu vi phạm đã được xử lý */
+    /** Đánh dấu vi phạm đã được xử lý và lưu vào DB */
     private void processViolation() {
         if (editingViolation == null) {
             showWarn("Chọn vi phạm cần đánh dấu xử lý!"); return;
@@ -511,12 +493,18 @@ public class ViolationPanel extends JPanel {
         if (r == JOptionPane.YES_OPTION) {
             editingViolation.setStatus(Violation.Status.PROCESSED);
             editingViolation.setHandledBy(handler);
-            refreshTable(violations);
-            showSuccess("Đã cập nhật trạng thái xử lý!");
+            boolean ok = DatabaseService.updateViolation(editingViolation);
+            if (ok) {
+                loadDataFromDatabase();
+                refreshTable(violations);
+                showSuccess("Đã cập nhật trạng thái xử lý!");
+            } else {
+                showWarn("Không thể cập nhật trạng thái trong cơ sở dữ liệu!");
+            }
         }
     }
 
-    /** Lọc bảng */
+    /** Lọc bảng (lọc trên danh sách đã tải từ DB) */
     private void filterTable(String sevFilter, String statusFilter, String keyword) {
         String q = keyword.toLowerCase().trim();
         List<Violation> filtered = violations.stream()
@@ -575,7 +563,7 @@ public class ViolationPanel extends JPanel {
     /** Xóa trắng form */
     private void clearForm() {
         editingViolation = null;
-        tfId.setText(nextViolationId());
+        tfId.setText(DatabaseService.nextViolationId());  // lấy ID tiếp theo từ DB
         tfStudentId.setText(""); tfStudentName.setText("");
         tfDate.setText(LocalDate.now().format(
             java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
@@ -587,7 +575,7 @@ public class ViolationPanel extends JPanel {
         cbStatus.setSelectedIndex(0);
     }
 
-    /** Tự động điền tên SV khi nhập mã */
+    /** Tự động điền tên SV khi nhập mã — tra cứu từ DB */
     private void autoFillStudent(String svId) {
         DatabaseService.getAllStudents().stream()
             .filter(s -> s.getId().equalsIgnoreCase(svId))
@@ -619,11 +607,6 @@ public class ViolationPanel extends JPanel {
 
     // ── Tiện ích ─────────────────────────────────────────────────
 
-    private String nextViolationId() {
-        if (violations.isEmpty()) return "VP0001";
-        return Violation.nextId(violations.get(violations.size() - 1).getId());
-    }
-
     private long parseFine(String s) {
         try { return Long.parseLong(s.replaceAll("[^0-9]", "")); }
         catch (Exception e) { return 0; }
@@ -646,22 +629,29 @@ public class ViolationPanel extends JPanel {
         };
     }
 
-    private JPanel singleRow(String label, JComponent field) {
+    private JPanel makeFieldPanel(String label, JComponent field) {
         JPanel p = new JPanel(new BorderLayout(0, 4));
         p.setOpaque(false);
-        p.setAlignmentX(LEFT_ALIGNMENT);
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
-        p.add(UITheme.formLabel(label), BorderLayout.NORTH);
-        p.add(field, BorderLayout.CENTER);
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(UITheme.FONT_LABEL); lbl.setForeground(UITheme.TEXT_SECONDARY);
+        p.add(lbl, BorderLayout.NORTH); p.add(field, BorderLayout.CENTER);
         return p;
     }
 
-    private void addField(JPanel grid, String label, JComponent field) {
-        JPanel cell = new JPanel(new BorderLayout(0, 4));
-        cell.setOpaque(false);
-        cell.add(UITheme.formLabel(label), BorderLayout.NORTH);
-        cell.add(field, BorderLayout.CENTER);
-        grid.add(cell);
+    private JPanel makeRow2(JPanel left, JPanel right) {
+        JPanel row = new JPanel(new GridLayout(1, 2, 8, 0));
+        row.setOpaque(false); row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        row.add(left); row.add(right);
+        return row;
+    }
+
+    private JPanel makeRow1(String label, JComponent field) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setOpaque(false); row.setAlignmentX(LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
+        row.add(makeFieldPanel(label, field), BorderLayout.CENTER);
+        return row;
     }
 
     private void showWarn(String msg) {

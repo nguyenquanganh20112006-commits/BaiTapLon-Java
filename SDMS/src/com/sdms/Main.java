@@ -3,7 +3,6 @@ package com.sdms;
 import com.sdms.ui.login.LoginFrame;
 import com.sdms.utils.DatabaseConnection;
 import com.sdms.utils.UITheme;
-
 import javax.swing.*;
 
 public class Main {
@@ -34,5 +33,6 @@ public class Main {
             UITheme.applyGlobalTheme();
             new LoginFrame().setVisible(true);
         });
+        
     }
 }
