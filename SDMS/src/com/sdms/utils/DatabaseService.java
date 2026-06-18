@@ -332,7 +332,7 @@ public class DatabaseService {
     public static List<PendingAccount> getAllPendingAccounts() {
         List<PendingAccount> list = new ArrayList<>();
         String sql = "SELECT id, username, full_name, phone, dob, cccd, gender, "
-                   + "registered_at, status, note FROM PendingAccounts ORDER BY registered_at DESC";
+                   + "registered_at, status, note, password FROM PendingAccounts ORDER BY registered_at DESC";
         try (Connection con = DatabaseConnection.getConnection();
              Statement st = con.createStatement();
              ResultSet rs = st.executeQuery(sql)) {
@@ -345,7 +345,8 @@ public class DatabaseService {
                     rs.getString("dob"),
                     rs.getString("cccd"),
                     rs.getString("gender"),
-                    rs.getString("registered_at")
+                    rs.getString("registered_at"),
+                    rs.getString("password")
                 );
                 // Map trạng thái từ DB sang enum
                 String dbStatus = rs.getString("status");
@@ -362,8 +363,8 @@ public class DatabaseService {
     /** Thêm đơn đăng ký mới */
     public static boolean addPendingAccount(PendingAccount pa) {
         String sql = "INSERT INTO PendingAccounts "
-                   + "(id, username, full_name, phone, dob, cccd, gender, registered_at, status, note) "
-                   + "VALUES (?,?,?,?,?,?,?,?,?,?)";
+                   + "(id, username, full_name, phone, dob, cccd, gender, registered_at, status, note, password) "
+                   + "VALUES (?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, pa.getId());
@@ -376,8 +377,10 @@ public class DatabaseService {
             ps.setString(8, pa.getRegisteredAt());
             ps.setString(9, pa.getStatusText());
             ps.setString(10, pa.getNote() == null ? "" : pa.getNote());
+            ps.setString(11, pa.getPassword() != null ? pa.getPassword() : "");
             return ps.executeUpdate() > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
+        
     }
 
     /** Cập nhật trạng thái + ghi chú đơn đăng ký */

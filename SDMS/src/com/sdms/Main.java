@@ -9,7 +9,7 @@ import javax.swing.*;
 public class Main {
     public static void main(String[] args) {
 
-        // ── Kiểm tra kết nối DB trước khi mở UI ──────────────────
+       
         if (!DatabaseConnection.testConnection()) {
             JOptionPane.showMessageDialog(null,
                 "❌ Không thể kết nối SQL Server!\n\n"
@@ -24,12 +24,12 @@ public class Main {
             System.exit(1);
         }
 
-        // ── Đóng kết nối khi thoát ───────────────────────────────
+        
         Runtime.getRuntime().addShutdownHook(
             new Thread(DatabaseConnection::closeConnection)
         );
 
-        // ── Khởi động giao diện ───────────────────────────────────
+        
         SwingUtilities.invokeLater(() -> {
             UITheme.applyGlobalTheme();
             new LoginFrame().setVisible(true);

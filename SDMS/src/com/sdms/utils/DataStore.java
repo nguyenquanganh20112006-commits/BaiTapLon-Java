@@ -23,12 +23,13 @@ public class DataStore {
         private final String cccd;
         private final String gender;
         private final String registeredAt;
+        private final String password; 
         private Status status;
         private String note;
 
         public PendingAccount(String id, String username, String fullName,
                               String phone, String dob, String cccd,
-                              String gender, String registeredAt) {
+                              String gender, String registeredAt, String password) {
             this.id           = id;
             this.username     = username;
             this.fullName     = fullName;
@@ -37,6 +38,7 @@ public class DataStore {
             this.cccd         = cccd;
             this.gender       = gender;
             this.registeredAt = registeredAt;
+            this.password = password;
             this.status       = Status.PENDING;
             this.note         = "";
         }
@@ -49,6 +51,7 @@ public class DataStore {
         public String getCccd()          { return cccd; }
         public String getGender()        { return gender; }
         public String getRegisteredAt()  { return registeredAt; }
+        public String getPassword()      { return password; }
         public Status getStatus()        { return status; }
         public String getNote()          { return note; }
         public void setStatus(Status s)  { this.status = s; }

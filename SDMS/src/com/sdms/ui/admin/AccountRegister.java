@@ -740,7 +740,7 @@ private void showDatePicker() {
         String gender = (String) cbGender.getSelectedItem();
 
         PendingAccount pa = new PendingAccount(
-                newId, un, fn, ph, dob, cc, gender, registeredAt);
+                newId, un, fn, ph, dob, cc, gender, registeredAt, sha256(pw));
 
         boolean saved = DatabaseService.addPendingAccount(pa);
         if (saved) {

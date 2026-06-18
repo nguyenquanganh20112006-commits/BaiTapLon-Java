@@ -354,29 +354,18 @@ private void approveSelected() {
             ""
     );
 
-    // mật khẩu mặc định
-    String defaultPassword = "123456";
+   
+   String passwordHash = a.getPassword();  // lấy hash đã lưu từ lúc đăng ký
 
-    // hash SHA256
-    String passwordHash = sha256(defaultPassword);
-
-    // tạo user
-    DatabaseService.addUser(
-            a.getUsername(),
-            passwordHash,
-            "STUDENT",
-            a.getFullName(),
-            null
-    );
-
-    refreshTable();
-
-    showToast(
-            "Đã duyệt tài khoản: "
-            + a.getFullName()
-            + "\nMật khẩu mặc định: 123456",
-            true
-    );
+   DatabaseService.addUser(
+        a.getUsername(),
+        passwordHash,
+        "STUDENT",
+        a.getFullName(),
+        null
+);
+   showToast("Đã duyệt tài khoản: " + a.getFullName()
+        + "\nSinh viên dùng mật khẩu đã đăng ký để đăng nhập.", true);
 }
 
     private void rejectSelected() {

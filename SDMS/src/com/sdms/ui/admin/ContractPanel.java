@@ -51,7 +51,7 @@ public class ContractPanel extends JPanel {
     public ContractPanel() {
         setBackground(UITheme.BG_LIGHT);
         setLayout(new BorderLayout());
-        initSampleData();  // Tạo dữ liệu mẫu ban đầu
+        contracts.addAll(DatabaseService.getAllContracts()); // Tải dữ liệu từ database
         add(buildHeader(), BorderLayout.NORTH);
 
         // Chia đôi: form trái | bảng phải
@@ -64,24 +64,6 @@ public class ContractPanel extends JPanel {
         split.setBorder(null);
         split.setResizeWeight(0.25);
         add(split, BorderLayout.CENTER);
-    }
-
-    // ── Tạo dữ liệu mẫu ──────────────────────────────────────────
-    private void initSampleData() {
-        contracts.add(new Contract("HĐ0001","SV001248","Nguyễn Văn An",   "A301",
-            LocalDate.of(2024,9,1), LocalDate.of(2025,8,31), 850_000, "", Contract.Status.ACTIVE));
-        contracts.add(new Contract("HĐ0002","SV001247","Trần Thị Bình",   "B204",
-            LocalDate.of(2024,9,1), LocalDate.of(2025,8,31), 850_000, "", Contract.Status.ACTIVE));
-        contracts.add(new Contract("HĐ0003","SV001243","Vũ Thị Lan",      "A204",
-            LocalDate.of(2024,9,1), LocalDate.of(2025,8,31), 850_000, "", Contract.Status.ACTIVE));
-        contracts.add(new Contract("HĐ0004","SV001242","Đặng Minh Tuấn",  "B102",
-            LocalDate.of(2024,9,1), LocalDate.of(2025,8,31), 850_000, "", Contract.Status.ACTIVE));
-        contracts.add(new Contract("HĐ0005","SV001241","Bùi Thị Mai",     "C305",
-            LocalDate.of(2024,9,1), LocalDate.of(2025,8,31), 850_000, "", Contract.Status.ACTIVE));
-        contracts.add(new Contract("HĐ0006","SV001244","Hoàng Văn Nam",   "D405",
-            LocalDate.of(2023,9,1), LocalDate.of(2024,8,31), 750_000, "Đã rời phòng", Contract.Status.EXPIRED));
-        contracts.add(new Contract("HĐ0007","SV001249","Nguyễn Thị Lan Anh","A301",
-            LocalDate.of(2024,9,1), LocalDate.of(2025,8,31), 850_000, "", Contract.Status.ACTIVE));
     }
 
     // ── Header ────────────────────────────────────────────────────
