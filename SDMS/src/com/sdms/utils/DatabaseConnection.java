@@ -56,11 +56,9 @@ public class DatabaseConnection {
     }
 
     // ── Kiểm tra kết nối — gọi khi khởi động ───────────────────
-<<<<<<< HEAD
-    public static boolean testConnection() {
-=======
+
    public static boolean testConnection() {
->>>>>>> 4077615da85250227b64e03ed9145811fbc192f7
+
     try {
         System.out.println("SERVER = " + SERVER);
         System.out.println("URL = " + URL);
