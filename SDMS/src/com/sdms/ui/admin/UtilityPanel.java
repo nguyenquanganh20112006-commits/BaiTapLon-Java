@@ -1,5 +1,7 @@
 package com.sdms.ui.admin;
 
+import com.sdms.model.Contract;
+import com.sdms.model.Invoice;
 import com.sdms.model.Utility;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
@@ -172,8 +174,7 @@ public class UtilityPanel extends JPanel {
         btnDelete.addActionListener(e -> deleteUtility());
         btnReset.addActionListener(e  -> clearForm());
         btnConfirm.addActionListener(e-> confirmUtility());
-        btnExport.addActionListener(e -> JOptionPane.showMessageDialog(this,
-            "✅ Đã xuất báo cáo điện nước thành công!", "Thông báo", JOptionPane.INFORMATION_MESSAGE));
+        btnExport.addActionListener(e -> exportUtilityReport());
 
         form.add(sec);       form.add(Box.createVerticalStrut(4));
         form.add(row1);      form.add(Box.createVerticalStrut(8));
@@ -275,7 +276,7 @@ public class UtilityPanel extends JPanel {
         cbMonthFilter.setPreferredSize(new Dimension(130, 36));
 
         JComboBox<String> cbConfirmFilter = UITheme.comboBox(
-            new String[]{"Tất cả", "Đã chốt", "Chưa chốt"}
+            new String[]{"Tất cả", "✓ Đã chốt", "⏳ Chưa chốt"}
         );
         cbConfirmFilter.setPreferredSize(new Dimension(120, 36));
 
@@ -354,6 +355,8 @@ public class UtilityPanel extends JPanel {
             tfSearch.setText("");
             cbMonthFilter.setSelectedIndex(0);
             cbConfirmFilter.setSelectedIndex(0);
+            utilities.clear();
+            utilities.addAll(DatabaseService.getAllUtilities());
             refreshTable(utilities);
         });
 
@@ -418,6 +421,9 @@ public class UtilityPanel extends JPanel {
                 tfNote.getText().trim(),
                 false
             );
+            if (!DatabaseService.addUtility(u)) {
+                showWarn("Lưu vào database thất bại! Kiểm tra kết nối."); return;
+            }
             utilities.add(u);
             refreshTable(utilities);
             clearForm();
@@ -445,6 +451,9 @@ public class UtilityPanel extends JPanel {
             editingUtility.setElectricUnitPrice(parseLong(tfElecPrice.getText()));
             editingUtility.setWaterUnitPrice(parseLong(tfWaterPrice.getText()));
             editingUtility.setNote(tfNote.getText().trim());
+            if (!DatabaseService.updateUtility(editingUtility)) {
+                showWarn("Cập nhật database thất bại! Kiểm tra kết nối."); return;
+            }
             refreshTable(utilities);
             showSuccess("Cập nhật thành công!");
         } catch (Exception ex) {
@@ -463,6 +472,9 @@ public class UtilityPanel extends JPanel {
             + editingUtility.getRoomId() + " tháng " + editingUtility.getMonth() + "?",
             "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
+            if (!DatabaseService.deleteUtility(editingUtility.getId())) {
+                showWarn("Xóa database thất bại! Kiểm tra kết nối."); return;
+            }
             utilities.remove(editingUtility);
             editingUtility = null;
             refreshTable(utilities);
@@ -483,8 +495,56 @@ public class UtilityPanel extends JPanel {
             "Xác nhận chốt", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
             editingUtility.setConfirmed(true);
+            if (!DatabaseService.updateUtility(editingUtility)) {
+                showWarn("Lưu trạng thái chốt thất bại! Kiểm tra kết nối."); return;
+            }
+
+            // Tự động sinh hóa đơn (Invoice) cho phòng/tháng này
+            String roomId = editingUtility.getRoomId();
+            String month  = editingUtility.getMonth();
+
+            // Kiểm tra hóa đơn phòng/tháng đã tồn tại chưa
+            boolean invoiceExists = DatabaseService.getAllInvoices().stream()
+                .anyMatch(inv -> inv.getRoomId().equals(roomId) && inv.getMonth().equals(month));
+
+            if (invoiceExists) {
+                refreshTable(utilities);
+                showSuccess("Đã chốt chỉ số! (Hóa đơn tháng này đã tồn tại, không tạo thêm.)");
+                return;
+            }
+
+            // Tìm hợp đồng đang hiệu lực của phòng để lấy sinh viên và tiền phòng
+            Contract activeContract = DatabaseService.getAllContracts().stream()
+                .filter(c -> c.getRoomId().equals(roomId)
+                          && c.getStatus() == Contract.Status.ACTIVE)
+                .findFirst().orElse(null);
+
+            if (activeContract == null) {
+                refreshTable(utilities);
+                showSuccess("Đã chốt chỉ số!\n⚠ Phòng " + roomId
+                    + " chưa có hợp đồng hiệu lực — hóa đơn chưa được tạo tự động.");
+                return;
+            }
+
+            Invoice inv = new Invoice(
+                DatabaseService.nextInvoiceId(),
+                activeContract.getStudentId(),
+                activeContract.getStudentName(),
+                roomId,
+                month,
+                activeContract.getMonthlyFee(),
+                editingUtility.getElectricFee(),
+                editingUtility.getWaterFee(),
+                false   // chưa thanh toán
+            );
+
+            if (DatabaseService.addInvoice(inv)) {
+                showSuccess("Đã chốt chỉ số và tạo hóa đơn " + inv.getId()
+                    + " cho phòng " + roomId + " tháng " + month + "!");
+            } else {
+                showSuccess("Đã chốt chỉ số!\n⚠ Tạo hóa đơn tự động thất bại, vui lòng kiểm tra lại.");
+            }
             refreshTable(utilities);
-            showSuccess("Đã chốt chỉ số thành công!");
         }
     }
 
@@ -560,8 +620,7 @@ public class UtilityPanel extends JPanel {
     // ── Tiện ích ─────────────────────────────────────────────────
 
     private String nextUtilityId() {
-        if (utilities.isEmpty()) return "UT0001";
-        return Utility.nextId(utilities.get(utilities.size() - 1).getId());
+        return DatabaseService.nextUtilityId();
     }
 
     private double parseDouble(String s) {
@@ -664,5 +723,39 @@ public class UtilityPanel extends JPanel {
             lbl.setBackground(sel ? UITheme.PRIMARY_LIGHT : UITheme.WHITE);
             return lbl;
         };
+    }
+
+    /** Xuất danh sách điện nước ra file CSV (mở được bằng Excel) */
+    private void exportUtilityReport() {
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setSelectedFile(new java.io.File("BaoCao_DienNuoc.csv"));
+        fc.setDialogTitle("Lưu báo cáo điện nước");
+        if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+
+        java.io.File file = fc.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".csv"))
+            file = new java.io.File(file.getPath() + ".csv");
+
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(
+                new java.io.OutputStreamWriter(new java.io.FileOutputStream(file), "UTF-8"))) {
+            pw.print('\uFEFF');
+            pw.println("Mã BG,Phòng,Tháng,Điện đầu,Điện cuối,Dùng (kWh),Tiền điện,Nước đầu,Nước cuối,Dùng (m³),Tiền nước,Tổng tiền,Trạng thái");
+            for (Utility u : utilities) {
+                pw.printf("%s,%s,%s,%.1f,%.1f,%.1f,%d,%.1f,%.1f,%.1f,%d,%d,%s%n",
+                    u.getId(), u.getRoomId(), u.getMonth(),
+                    u.getElectricPrev(), u.getElectricCurr(),
+                    u.getElectricCurr() - u.getElectricPrev(), u.getElectricFee(),
+                    u.getWaterPrev(), u.getWaterCurr(),
+                    u.getWaterCurr() - u.getWaterPrev(), u.getWaterFee(),
+                    u.getElectricFee() + u.getWaterFee(),
+                    u.isConfirmed() ? "Đã chốt" : "Chưa chốt");
+            }
+            JOptionPane.showMessageDialog(this,
+                "✅ Đã xuất " + utilities.size() + " bản ghi ra:\n" + file.getAbsolutePath(),
+                "Xuất thành công", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Xuất thất bại: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

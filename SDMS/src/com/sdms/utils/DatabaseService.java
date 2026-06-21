@@ -999,29 +999,33 @@ public class DatabaseService {
         return "";
     }
 
-    /** Cập nhật một setting */
+    /** Cập nhật một setting (UPSERT: update nếu key đã tồn tại, insert nếu chưa có) */
     public static boolean setSetting(String key, String value) {
-        String sql = "UPDATE Settings SET setting_value=? WHERE setting_key=?";
+        String update = "UPDATE Settings SET setting_value=? WHERE setting_key=?";
         try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+             PreparedStatement ps = con.prepareStatement(update)) {
             ps.setString(1, value);
             ps.setString(2, key);
+            if (ps.executeUpdate() > 0) return true;
+        } catch (SQLException e) { e.printStackTrace(); return false; }
+
+        // Key chưa tồn tại trong bảng Settings -> insert mới
+        String insert = "INSERT INTO Settings (setting_key, setting_value) VALUES (?,?)";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(insert)) {
+            ps.setString(1, key);
+            ps.setString(2, value);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    /** Lưu nhiều setting cùng lúc (từ SettingsPanel) */
-    public static void saveSettings(Map<String, String> settings) {
-        String sql = "UPDATE Settings SET setting_value=? WHERE setting_key=?";
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            for (Map.Entry<String, String> e : settings.entrySet()) {
-                ps.setString(1, e.getValue());
-                ps.setString(2, e.getKey());
-                ps.addBatch();
-            }
-            ps.executeBatch();
-        } catch (SQLException e) { e.printStackTrace(); }
+    /** Lưu nhiều setting cùng lúc (từ SettingsPanel) — UPSERT từng key, trả về true nếu tất cả thành công */
+    public static boolean saveSettings(Map<String, String> settings) {
+        boolean allOk = true;
+        for (Map.Entry<String, String> e : settings.entrySet()) {
+            if (!setSetting(e.getKey(), e.getValue())) allOk = false;
+        }
+        return allOk;
     }
 
     // ════════════════════════════════════════════════════════════

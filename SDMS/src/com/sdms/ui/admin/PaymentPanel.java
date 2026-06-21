@@ -59,18 +59,31 @@ public class PaymentPanel extends JPanel {
         toolbar.setOpaque(false);
         JTextField tfSearch = UITheme.textField("🔍  Tìm theo tên sinh viên, phòng...");
         tfSearch.setPreferredSize(new Dimension(260,36));
-        JComboBox<String> cbMonth = UITheme.comboBox(new String[]{"06/2026","05/2026","04/2026","03/2026"});
+        JComboBox<String> cbMonth = UITheme.comboBox(new String[]{"Tất cả tháng","06/2026","05/2026","04/2026","03/2026"});
         cbMonth.setPreferredSize(new Dimension(110,36));
         JComboBox<String> cbStatus = UITheme.comboBox(new String[]{"Tất cả","Đã thanh toán","Chưa thanh toán"});
         cbStatus.setPreferredSize(new Dimension(160,36));
         JButton btnExcel = UITheme.successBtn("📊 Xuất Excel");
+        btnExcel.addActionListener(e -> exportToExcel());
         toolbar.add(tfSearch); toolbar.add(cbMonth); toolbar.add(cbStatus); toolbar.add(btnExcel);
 
         // Table
         model = new DefaultTableModel(null, COLS) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
-        refreshTable();
+        refreshTable("", "Tất cả tháng", "Tất cả");
+
+        // Listeners filter
+        Runnable doFilter = () -> refreshTable(
+            tfSearch.getText().trim().toLowerCase(),
+            (String) cbMonth.getSelectedItem(),
+            (String) cbStatus.getSelectedItem()
+        );
+        tfSearch.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override public void keyReleased(java.awt.event.KeyEvent ev) { doFilter.run(); }
+        });
+        cbMonth.addActionListener(e -> doFilter.run());
+        cbStatus.addActionListener(e -> doFilter.run());
 
         table = new JTable(model);
         table.setShowVerticalLines(false);
@@ -104,9 +117,15 @@ public class PaymentPanel extends JPanel {
                             "<html>Xác nhận thanh toán hóa đơn <b>"+id+"</b>?<br>Tổng tiền: <b>"+String.format("%,d đ", inv.getTotal())+"</b></html>",
                             "Thanh toán", JOptionPane.YES_NO_OPTION);
                         if (r == JOptionPane.YES_OPTION) {
-                            inv.setPaid(true);
-                            refreshTable();
-                            JOptionPane.showMessageDialog(PaymentPanel.this, "✅ Thanh toán thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                            if (DatabaseService.markInvoicePaid(inv.getId(), true)) {
+                                inv.setPaid(true);
+                                refreshTable("", "Tất cả tháng", "Tất cả");
+                                JOptionPane.showMessageDialog(PaymentPanel.this,
+                                    "✅ Thanh toán thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                            } else {
+                                JOptionPane.showMessageDialog(PaymentPanel.this,
+                                    "❌ Lưu thất bại! Kiểm tra kết nối database.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                            }
                         }
                     }
                 }
@@ -149,8 +168,55 @@ public class PaymentPanel extends JPanel {
         return card;
     }
 
-    private void refreshTable() {
+    private void refreshTable(String search, String month, String status) {
         model.setRowCount(0);
-        for (Invoice inv : DatabaseService.getAllInvoices()) model.addRow(inv.toRow());
+        for (Invoice inv : DatabaseService.getAllInvoices()) {
+            // Filter tháng
+            if (month != null && !month.isEmpty() && !month.equals("Tất cả tháng")) {
+                if (inv.getMonth() == null || !inv.getMonth().equals(month)) continue;
+            }
+            // Filter trạng thái
+            if (status != null && !status.equals("Tất cả")) {
+                boolean wantPaid = status.equals("Đã thanh toán");
+                if (inv.isPaid() != wantPaid) continue;
+            }
+            // Filter tìm kiếm
+            if (search != null && !search.isEmpty()) {
+                String combined = (inv.getStudentName() + " " + inv.getRoomId()).toLowerCase();
+                if (!combined.contains(search)) continue;
+            }
+            model.addRow(inv.toRow());
+        }
+    }
+
+    /** Xuất danh sách hóa đơn ra file CSV (mở được bằng Excel) */
+    private void exportToExcel() {
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setSelectedFile(new java.io.File("HoaDon_ThanhToan.csv"));
+        fc.setDialogTitle("Lưu file xuất Excel");
+        if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+
+        java.io.File file = fc.getSelectedFile();
+        if (!file.getName().endsWith(".csv"))
+            file = new java.io.File(file.getPath() + ".csv");
+
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(
+                new java.io.OutputStreamWriter(new java.io.FileOutputStream(file), "UTF-8"))) {
+            // BOM để Excel nhận UTF-8
+            pw.print('\uFEFF');
+            pw.println("Mã HĐ,Sinh viên,Phòng,Tháng,Tiền phòng,Tiền điện,Tiền nước,Tổng tiền,Trạng thái");
+            for (Invoice inv : DatabaseService.getAllInvoices()) {
+                pw.printf("%s,%s,%s,%s,%d,%d,%d,%d,%s%n",
+                    inv.getId(), inv.getStudentName(), inv.getRoomId(), inv.getMonth(),
+                    inv.getRoomFee(), inv.getElectricFee(), inv.getWaterFee(), inv.getTotal(),
+                    inv.isPaid() ? "Đã thanh toán" : "Chưa thanh toán");
+            }
+            JOptionPane.showMessageDialog(this,
+                "✅ Đã xuất " + DatabaseService.getAllInvoices().size() + " hóa đơn ra:\n" + file.getAbsolutePath(),
+                "Xuất thành công", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Xuất thất bại: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

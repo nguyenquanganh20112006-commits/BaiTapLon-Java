@@ -19,15 +19,16 @@ public class AdminFrame extends JFrame {
     private String activeMenu = "Dashboard";
 
     private static final String[][] MENU_ITEMS = {
-        {"Dashboard",            "dashboard"},
-        {"Quản lý sinh viên",    "users"},
-        {"Quản lý phòng",        "door"},
-        {"Quản lý hợp đồng",    "file-text"},
-        {"Quản lý điện nước",   "bolt"},
-        {"Quản lý thanh toán",  "credit-card"},
-        {"Quản lý vi phạm",     "alert"},
-        {"Quản lý tài khoản",   "user-cog"},
-        {"Cài đặt",              "settings"},
+        {"Dashboard",              "dashboard"},
+        {"Quản lý sinh viên",      "users"},
+        {"Quản lý phòng",          "door"},
+        {"Quản lý hợp đồng",      "file-text"},
+        {"Quản lý điện nước",     "bolt"},
+        {"Quản lý thanh toán",    "credit-card"},
+        {"Quản lý vi phạm",       "alert"},
+        {"Thống kê & Báo cáo",    "bar-chart"},
+        {"Quản lý tài khoản",     "user-cog"},
+        {"Cài đặt",                "settings"},
     };
 
     public AdminFrame(User user) {
@@ -110,12 +111,12 @@ public class AdminFrame extends JFrame {
 
         JLabel secManage = sectionLabel("QUẢN LÝ");
         navPanel.add(secManage);
-        for (int i = 1; i <= 6; i++) navPanel.add(buildMenuItem(MENU_ITEMS[i]));
+        for (int i = 1; i <= 7; i++) navPanel.add(buildMenuItem(MENU_ITEMS[i]));
 
         JLabel secAccount = sectionLabel("TÀI KHOẢN & HỆ THỐNG");
         navPanel.add(secAccount);
-        navPanel.add(buildMenuItem(MENU_ITEMS[7]));
         navPanel.add(buildMenuItem(MENU_ITEMS[8]));
+        navPanel.add(buildMenuItem(MENU_ITEMS[9]));
 
         // Logout
         JPanel logoutBtn = buildMenuItem(new String[]{"Đăng xuất","logout"});
@@ -199,6 +200,7 @@ public class AdminFrame extends JFrame {
             case "Quản lý điện nước"  -> "⚡";
             case "Quản lý thanh toán" -> "💳";
             case "Quản lý vi phạm"    -> "⚠";
+            case "Thống kê & Báo cáo" -> "📊";
             case "Quản lý tài khoản"  -> "👤";
             case "Cài đặt"             -> "⚙";
             case "Đăng xuất"           -> "↩";
@@ -279,6 +281,13 @@ public class AdminFrame extends JFrame {
         return header;
     }
 
+    /** Được gọi từ các panel con (ví dụ DashboardPanel) để chuyển sang menu khác */
+    public void navigateTo(String menuName) {
+        activeMenu = menuName;
+        switchPanel(menuName);
+        rebuildSidebar();
+    }
+
     private void switchPanel(String name) {
         contentArea.removeAll();
         JPanel panel = switch (name) {
@@ -289,8 +298,9 @@ public class AdminFrame extends JFrame {
             case "Quản lý điện nước"  -> new UtilityPanel();
             case "Quản lý thanh toán" -> new PaymentPanel();
             case "Quản lý vi phạm"    -> new ViolationPanel();
+            case "Thống kê & Báo cáo" -> new ReportPanel();
             case "Quản lý tài khoản"  -> new AccountManagementPanel();
-            case "Cài đặt"             -> new SettingsPanel();
+            case "Cài đặt"             -> new SettingsPanel(currentUser);
             default -> buildComingSoon(name);
         };
         contentArea.add(panel, BorderLayout.CENTER);
