@@ -1,7 +1,7 @@
 package com.sdms.ui.admin;
 
+import com.sdms.model.Room;
 import com.sdms.model.Student;
-import com.sdms.utils.DataStore;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 import java.awt.*;
@@ -25,7 +25,6 @@ public class StudentPanel extends JPanel {
     private Student editingStudent = null;
 
     private static final String[] COLS    = {"Mã SV","Họ tên","Phòng","Khoa","SĐT","Email","Trạng thái"};
-    private static final String[] ROOMS   = {"","A301","A204","B204","B102","C112","C305","D201","D405"};
     private static final String[] STATUS  = {"Đang ở","Mới đăng ký","Chờ duyệt","Đã rời"};
     private static final String[] FACULTIES = {
         "Công nghệ thông tin", "Khoa học máy tính", "Hệ thống thông tin",
@@ -34,6 +33,15 @@ public class StudentPanel extends JPanel {
     private static final String[] CLASSES = {
         "CNTT01","CNTT02","CNTT03","KTPM01","HTTT01","ATTT01","AI01"
     };
+
+    /** Lấy danh sách mã phòng thật từ database (thay cho danh sách cứng sai trước đây) */
+    private static String[] loadRoomIds() {
+        List<String> ids = DatabaseService.getAllRooms().stream()
+            .map(Room::getId)
+            .collect(Collectors.toList());
+        ids.add(0, ""); // cho phép để trống
+        return ids.toArray(new String[0]);
+    }
 
     public StudentPanel() {
         setBackground(UITheme.BG_LIGHT);
@@ -118,12 +126,12 @@ public class StudentPanel extends JPanel {
         tfEmail   = UITheme.textField("");
         cbFaculty = UITheme.comboBox(FACULTIES);
         cbClass   = UITheme.comboBox(CLASSES);
-        cbRoom    = UITheme.comboBox(ROOMS);
+        cbRoom    = UITheme.comboBox(loadRoomIds());
         cbStatus  = UITheme.comboBox(STATUS);
         tfAddress = UITheme.textField("");
 
-        // Auto-fill new ID
-        tfId.setText(DataStore.nextStudentId());
+        // Auto-fill new ID — lấy mã thật tiếp theo từ database
+        tfId.setText(DatabaseService.nextStudentId());
 
         // ── Row 1: Mã SV  |  Ngày sinh ──────────────────────────
         JPanel row1 = new JPanel(new GridLayout(1, 2, 8, 0));
@@ -186,18 +194,16 @@ public class StudentPanel extends JPanel {
         btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
         JButton btnExcel = UITheme.successBtn("□ Xuất Excel");
-        JButton btnPdf   = UITheme.dangerBtn("□ Xuất PDF");
 
         btnRow1.add(btnAdd); btnRow1.add(btnEdit); btnRow1.add(btnDelete); btnRow1.add(btnReset);
-        btnRow2.add(btnExcel); btnRow2.add(btnPdf);
+        btnRow2.add(btnExcel);
 
         // Actions
         btnAdd.addActionListener(e -> addStudent());
         btnEdit.addActionListener(e -> editStudent());
         btnDelete.addActionListener(e -> deleteStudent());
         btnReset.addActionListener(e -> clearForm());
-        btnExcel.addActionListener(e -> JOptionPane.showMessageDialog(this, "✅ Đã xuất Excel thành công!", "Thông báo", JOptionPane.INFORMATION_MESSAGE));
-        btnPdf.addActionListener(e   -> JOptionPane.showMessageDialog(this, "✅ Đã xuất PDF thành công!",   "Thông báo", JOptionPane.INFORMATION_MESSAGE));
+        btnExcel.addActionListener(e -> exportToCsv());
 
         form.add(sec);
         form.add(Box.createVerticalStrut(4));
@@ -345,31 +351,8 @@ public class StudentPanel extends JPanel {
         scroll.getViewport().setBackground(UITheme.WHITE);
 
         // Pagination bar
-        JPanel paging = buildPagingBar();
-
         p.add(toolbar, BorderLayout.NORTH);
         p.add(scroll,  BorderLayout.CENTER);
-        p.add(paging,  BorderLayout.SOUTH);
-        return p;
-    }
-
-    private JPanel buildPagingBar() {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 4));
-        p.setOpaque(false);
-        JLabel info = new JLabel("Hiển thị 1–" + Math.min(10, DatabaseService.getAllStudents().size())
-                + " / " + DatabaseService.getAllStudents().size() + " kết quả");
-        info.setFont(UITheme.FONT_SMALL); info.setForeground(UITheme.TEXT_SECONDARY);
-        p.add(info);
-        for (int i = 1; i <= 3; i++) {
-            JButton pg = new JButton(String.valueOf(i));
-            pg.setFont(UITheme.FONT_SMALL);
-            pg.setPreferredSize(new Dimension(30, 28));
-            pg.setFocusPainted(false);
-            if (i == 1) { pg.setBackground(UITheme.PRIMARY); pg.setForeground(Color.WHITE); }
-            else { pg.setBackground(UITheme.WHITE); pg.setForeground(UITheme.TEXT_SECONDARY); }
-            pg.setBorder(BorderFactory.createLineBorder(i==1 ? UITheme.PRIMARY : UITheme.BORDER, 1, true));
-            p.add(pg);
-        }
         return p;
     }
 
@@ -407,15 +390,46 @@ public class StudentPanel extends JPanel {
         if (tfName.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this,"⚠ Vui lòng nhập họ và tên!","Lỗi",JOptionPane.WARNING_MESSAGE); return;
         }
+        if (tfId.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,"⚠ Vui lòng nhập mã sinh viên!","Lỗi",JOptionPane.WARNING_MESSAGE); return;
+        }
+        String roomId = (String)cbRoom.getSelectedItem();
+
+        // Kiểm tra phòng đã đầy chưa
+        if (roomId != null && !roomId.isEmpty()) {
+            Room selectedRoom = DatabaseService.getAllRooms().stream()
+                .filter(r -> r.getId().equals(roomId)).findFirst().orElse(null);
+            if (selectedRoom != null && selectedRoom.getOccupied() >= selectedRoom.getCapacity()) {
+                JOptionPane.showMessageDialog(this,
+                    "⚠ Phòng " + roomId + " đã đầy (" + selectedRoom.getOccupied() + "/" + selectedRoom.getCapacity() + " người)!\nVui lòng chọn phòng khác.",
+                    "Phòng đã đầy", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        }
+
         Student s = new Student(
             tfId.getText().trim(), tfName.getText().trim(), tfBirth.getText().trim(),
             (String)cbGender.getSelectedItem(), tfIdCard.getText().trim(),
             tfPhone.getText().trim(), tfEmail.getText().trim(),
-            "Ký túc xá", (String)cbFaculty.getSelectedItem(),
+            "",                                       // university (không có ô nhập trong form)
+            (String)cbFaculty.getSelectedItem(),      // faculty (khoa đúng)
             (String)cbClass.getSelectedItem(), tfAddress.getText().trim(),
-            (String)cbRoom.getSelectedItem(), (String)cbStatus.getSelectedItem()
+            roomId, (String)cbStatus.getSelectedItem()
         );
-        DatabaseService.addStudent(s);
+        boolean ok = DatabaseService.addStudent(s);
+        if (!ok) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Thêm sinh viên thất bại! Mã sinh viên có thể đã tồn tại hoặc lỗi kết nối database.",
+                "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        // Cập nhật số người trong phòng mới
+        if (roomId != null && !roomId.isEmpty()) {
+            Room selectedRoom = DatabaseService.getAllRooms().stream()
+                .filter(r -> r.getId().equals(roomId)).findFirst().orElse(null);
+            if (selectedRoom != null)
+                DatabaseService.updateRoomOccupied(roomId, selectedRoom.getOccupied() + 1);
+        }
         refreshTable(DatabaseService.getAllStudents());
         clearForm();
         JOptionPane.showMessageDialog(this,"✅ Thêm sinh viên thành công!","Thành công",JOptionPane.INFORMATION_MESSAGE);
@@ -423,15 +437,56 @@ public class StudentPanel extends JPanel {
 
     private void editStudent() {
         if (editingStudent == null) { JOptionPane.showMessageDialog(this,"⚠ Chọn sinh viên cần sửa từ bảng!","Lưu ý",JOptionPane.WARNING_MESSAGE); return; }
+
+        String oldRoomId = editingStudent.getRoomId();
+        String newRoomId = (String)cbRoom.getSelectedItem();
+
+        // Kiểm tra phòng mới có đầy không (chỉ khi đổi sang phòng khác)
+        if (newRoomId != null && !newRoomId.isEmpty() && !newRoomId.equals(oldRoomId)) {
+            Room newRoom = DatabaseService.getAllRooms().stream()
+                .filter(r -> r.getId().equals(newRoomId)).findFirst().orElse(null);
+            if (newRoom != null && newRoom.getOccupied() >= newRoom.getCapacity()) {
+                JOptionPane.showMessageDialog(this,
+                    "⚠ Phòng " + newRoomId + " đã đầy (" + newRoom.getOccupied() + "/" + newRoom.getCapacity() + " người)!\nVui lòng chọn phòng khác.",
+                    "Phòng đã đầy", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        }
+
         editingStudent.setFullName(tfName.getText().trim());
         editingStudent.setPhone(tfPhone.getText().trim());
         editingStudent.setEmail(tfEmail.getText().trim());
         editingStudent.setFaculty((String)cbFaculty.getSelectedItem());
         editingStudent.setClassName((String)cbClass.getSelectedItem());
         editingStudent.setAddress(tfAddress.getText().trim());
-        editingStudent.setRoomId((String)cbRoom.getSelectedItem());
+        editingStudent.setRoomId(newRoomId);
         editingStudent.setStatus((String)cbStatus.getSelectedItem());
-        editingStudent.setUniversity("Ký túc xá");
+        boolean ok = DatabaseService.updateStudent(editingStudent);
+        if (!ok) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Cập nhật thất bại! Kiểm tra kết nối database.",
+                "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Cập nhật số người trong phòng khi đổi phòng
+        if (newRoomId != null && !newRoomId.equals(oldRoomId)) {
+            // Phòng cũ: giảm 1 người (nếu có)
+            if (oldRoomId != null && !oldRoomId.isEmpty()) {
+                Room oldRoom = DatabaseService.getAllRooms().stream()
+                    .filter(r -> r.getId().equals(oldRoomId)).findFirst().orElse(null);
+                if (oldRoom != null && oldRoom.getOccupied() > 0)
+                    DatabaseService.updateRoomOccupied(oldRoomId, oldRoom.getOccupied() - 1);
+            }
+            // Phòng mới: tăng 1 người (nếu có)
+            if (!newRoomId.isEmpty()) {
+                Room newRoom = DatabaseService.getAllRooms().stream()
+                    .filter(r -> r.getId().equals(newRoomId)).findFirst().orElse(null);
+                if (newRoom != null)
+                    DatabaseService.updateRoomOccupied(newRoomId, newRoom.getOccupied() + 1);
+            }
+        }
+
         refreshTable(DatabaseService.getAllStudents());
         JOptionPane.showMessageDialog(this,"✅ Cập nhật thành công!","Thành công",JOptionPane.INFORMATION_MESSAGE);
     }
@@ -440,20 +495,65 @@ public class StudentPanel extends JPanel {
         if (editingStudent == null) { JOptionPane.showMessageDialog(this,"⚠ Chọn sinh viên cần xóa!","Lưu ý",JOptionPane.WARNING_MESSAGE); return; }
         int r = JOptionPane.showConfirmDialog(this,"Xóa sinh viên "+editingStudent.getFullName()+"?","Xác nhận xóa",JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
-            	DatabaseService.deleteStudent(editingStudent.getId());
+            String oldRoomId = editingStudent.getRoomId();
+            boolean ok = DatabaseService.deleteStudent(editingStudent.getId());
+            if (!ok) {
+                JOptionPane.showMessageDialog(this,
+                    "❌ Xóa thất bại! Sinh viên có thể đang được tham chiếu bởi hợp đồng/hóa đơn khác, hoặc lỗi kết nối database.",
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // Giảm occupied phòng cũ
+            if (oldRoomId != null && !oldRoomId.isEmpty()) {
+                Room oldRoom = DatabaseService.getAllRooms().stream()
+                    .filter(rm -> rm.getId().equals(oldRoomId)).findFirst().orElse(null);
+                if (oldRoom != null && oldRoom.getOccupied() > 0)
+                    DatabaseService.updateRoomOccupied(oldRoomId, oldRoom.getOccupied() - 1);
+            }
             editingStudent = null;
             refreshTable(DatabaseService.getAllStudents());
             clearForm();
+            JOptionPane.showMessageDialog(this,"✅ Đã xóa sinh viên thành công!","Thành công",JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
     private void clearForm() {
         editingStudent = null;
-        tfId.setText(DataStore.nextStudentId());
+        tfId.setText(DatabaseService.nextStudentId());
         tfName.setText(""); tfBirth.setText(""); tfIdCard.setText("");
         tfPhone.setText(""); tfEmail.setText(""); tfAddress.setText("");
         cbGender.setSelectedIndex(0); cbRoom.setSelectedIndex(0);
         cbStatus.setSelectedIndex(0); cbFaculty.setSelectedIndex(0); cbClass.setSelectedIndex(0);
+    }
+
+    /** Xuất danh sách sinh viên đang hiển thị ra file CSV (mở được bằng Excel/PDF reader sau khi convert) */
+    private void exportToCsv() {
+        JFileChooser fc = new JFileChooser();
+        fc.setSelectedFile(new java.io.File("DanhSachSinhVien.csv"));
+        fc.setDialogTitle("Lưu danh sách sinh viên");
+        if (fc.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+
+        java.io.File file = fc.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".csv"))
+            file = new java.io.File(file.getPath() + ".csv");
+
+        List<Student> data = DatabaseService.getAllStudents();
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(
+                new java.io.OutputStreamWriter(new java.io.FileOutputStream(file), "UTF-8"))) {
+            pw.print('\uFEFF'); // BOM để Excel nhận đúng UTF-8
+            pw.println("Mã SV,Họ tên,Phòng,Khoa,Lớp,SĐT,Email,Trạng thái");
+            for (Student s : data) {
+                pw.printf("%s,%s,%s,%s,%s,%s,%s,%s%n",
+                    s.getId(), s.getFullName(), s.getRoomId(), s.getFaculty(),
+                    s.getClassName(), s.getPhone(), s.getEmail(), s.getStatus());
+            }
+            JOptionPane.showMessageDialog(this,
+                "✅ Đã xuất " + data.size() + " sinh viên ra:\n" + file.getAbsolutePath(),
+                "Xuất thành công", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Xuất thất bại: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     // ── Renderers ─────────────────────────────────────────────────

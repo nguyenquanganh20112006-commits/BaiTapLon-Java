@@ -234,6 +234,27 @@ public class DashboardPanel extends JPanel {
         JLabel more = new JLabel("Xem tất cả →");
         more.setFont(UITheme.FONT_SMALL); more.setForeground(UITheme.PRIMARY);
         more.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        more.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(DashboardPanel.this);
+                if (win instanceof AdminFrame af) af.navigateTo("Quản lý sinh viên");
+            }
+            @Override public void mouseEntered(java.awt.event.MouseEvent e) {
+                more.setForeground(UITheme.PRIMARY_DARK);
+            }
+            @Override public void mouseExited(java.awt.event.MouseEvent e) {
+                more.setForeground(UITheme.PRIMARY);
+            }
+        });
+        more.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                // Tìm AdminFrame cha và chuyển sang StudentPanel
+                java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(DashboardPanel.this);
+                if (win instanceof AdminFrame af) {
+                    af.navigateTo("Quản lý sinh viên");
+                }
+            }
+        });
         titleRow.add(title, BorderLayout.WEST); titleRow.add(more, BorderLayout.EAST);
         card.add(titleRow, BorderLayout.NORTH);
 
@@ -241,7 +262,8 @@ public class DashboardPanel extends JPanel {
         Object[][] rowData = DatabaseService.getAllStudents().stream()
             .limit(5)
             .map(s -> new Object[]{s.getId(), s.getFullName(),
-                s.getRoomId().isEmpty()?"—":s.getRoomId(), s.getUniversity(), s.getStatus()})
+                s.getRoomId() == null || s.getRoomId().isEmpty() ? "—" : s.getRoomId(),
+                s.getUniversity(), s.getStatus()})
             .toArray(Object[][]::new);
 
         DefaultTableModel model = new DefaultTableModel(rowData, cols) {
