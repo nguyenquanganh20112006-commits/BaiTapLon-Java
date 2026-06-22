@@ -389,11 +389,33 @@ private void approveSelected() {
     }
 
     // Cập nhật số người trong phòng được gán (nếu có)
+    com.sdms.model.Room assignedRoom = null;
     if (!chosenRoomId.isEmpty()) {
-        com.sdms.model.Room assignedRoom = allRooms.stream()
+        assignedRoom = allRooms.stream()
             .filter(r -> r.getId().equals(chosenRoomId)).findFirst().orElse(null);
         if (assignedRoom != null)
             DatabaseService.updateRoomOccupied(chosenRoomId, assignedRoom.getOccupied() + 1);
+    }
+
+    // Tự động tạo Hợp đồng nếu sinh viên đã được gán phòng
+    String contractInfo = "";
+    if (assignedRoom != null) {
+        long monthlyFee = roomMonthlyFee(assignedRoom.getCapacity());
+        java.time.LocalDate startDate = java.time.LocalDate.now();
+        java.time.LocalDate endDate   = startDate.plusYears(1);
+
+        com.sdms.model.Contract contract = new com.sdms.model.Contract(
+            DatabaseService.nextContractId(),
+            studentId, a.getFullName(), chosenRoomId,
+            startDate, endDate, monthlyFee,
+            "Tự động tạo khi duyệt tài khoản",
+            com.sdms.model.Contract.Status.ACTIVE
+        );
+        if (DatabaseService.addContract(contract)) {
+            contractInfo = "\n📄 Đã tạo hợp đồng " + contract.getId() + " (hiệu lực đến " + contract.getEndDateStr() + ").";
+        } else {
+            contractInfo = "\n⚠ Tạo hợp đồng tự động thất bại, vui lòng tạo thủ công ở Quản lý hợp đồng.";
+        }
     }
 
     // Cập nhật trạng thái đơn
@@ -404,7 +426,21 @@ private void approveSelected() {
     DatabaseService.addUser(a.getUsername(), a.getPassword(), "STUDENT", a.getFullName(), studentId);
 
     refreshTable();
-    showToast("✅ Đã duyệt! Sinh viên " + a.getFullName() + " (mã " + studentId + ") đã được thêm vào hệ thống.", true);
+    showToast("✅ Đã duyệt! Sinh viên " + a.getFullName() + " (mã " + studentId + ") đã được thêm vào hệ thống." + contractInfo, true);
+}
+
+/**
+ * Lấy tiền phòng/tháng theo sức chứa phòng, dựa trên đơn giá đã cấu hình ở Cài đặt hệ thống
+ * (room_fee_4 / room_fee_6). Sức chứa khác sẽ rơi về mặc định room_fee_4 nếu không khớp.
+ */
+private long roomMonthlyFee(int capacity) {
+    String key = (capacity >= 6) ? "room_fee_6" : "room_fee_4";
+    String raw = DatabaseService.getSetting(key);
+    try {
+        return raw == null || raw.trim().isEmpty() ? 0L : Long.parseLong(raw.trim());
+    } catch (NumberFormatException e) {
+        return 0L;
+    }
 }
 
 /**

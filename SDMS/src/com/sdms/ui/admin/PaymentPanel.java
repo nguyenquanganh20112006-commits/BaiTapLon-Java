@@ -1,7 +1,8 @@
 package com.sdms.ui.admin;
 
+import com.sdms.model.Contract;
 import com.sdms.model.Invoice;
-import com.sdms.utils.DataStore;
+import com.sdms.model.Notification;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
@@ -10,11 +11,15 @@ import javax.swing.border.*;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.List;
 
 public class PaymentPanel extends JPanel {
 
     private DefaultTableModel model;
     private JTable table;
+    private JTextField tfSearch;
+    private JComboBox<String> cbMonth;
+    private JComboBox<String> cbStatus;
 
     private static final String[] COLS = {"Mã HĐ","Sinh viên","Phòng","Tháng",
                                           "Tiền phòng","Tiền điện","Tiền nước","Tổng tiền","Trạng thái"};
@@ -57,30 +62,28 @@ public class PaymentPanel extends JPanel {
         // Toolbar
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT,8,0));
         toolbar.setOpaque(false);
-        JTextField tfSearch = UITheme.textField("🔍  Tìm theo tên sinh viên, phòng...");
-        tfSearch.setPreferredSize(new Dimension(260,36));
-        JComboBox<String> cbMonth = UITheme.comboBox(new String[]{"Tất cả tháng","06/2026","05/2026","04/2026","03/2026"});
+        tfSearch = UITheme.textField("🔍  Tìm theo tên sinh viên, phòng...");
+        tfSearch.setPreferredSize(new Dimension(240,36));
+        cbMonth = UITheme.comboBox(new String[]{"Tất cả tháng","06/2026","05/2026","04/2026","03/2026"});
         cbMonth.setPreferredSize(new Dimension(110,36));
-        JComboBox<String> cbStatus = UITheme.comboBox(new String[]{"Tất cả","Đã thanh toán","Chưa thanh toán"});
-        cbStatus.setPreferredSize(new Dimension(160,36));
+        cbStatus = UITheme.comboBox(new String[]{"Tất cả","Đã thanh toán","Chưa thanh toán"});
+        cbStatus.setPreferredSize(new Dimension(150,36));
+        JButton btnPrepay = UITheme.primaryBtn("⚡ Thanh toán trước hạn");
+        btnPrepay.addActionListener(e -> openPrepayDialog());
         JButton btnExcel = UITheme.successBtn("📊 Xuất Excel");
         btnExcel.addActionListener(e -> exportToExcel());
-        toolbar.add(tfSearch); toolbar.add(cbMonth); toolbar.add(cbStatus); toolbar.add(btnExcel);
+        toolbar.add(tfSearch); toolbar.add(cbMonth); toolbar.add(cbStatus); toolbar.add(btnPrepay); toolbar.add(btnExcel);
 
         // Table
         model = new DefaultTableModel(null, COLS) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
-        refreshTable("", "Tất cả tháng", "Tất cả");
+        refreshTable();
 
-        // Listeners filter
-        Runnable doFilter = () -> refreshTable(
-            tfSearch.getText().trim().toLowerCase(),
-            (String) cbMonth.getSelectedItem(),
-            (String) cbStatus.getSelectedItem()
-        );
-        tfSearch.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override public void keyReleased(java.awt.event.KeyEvent ev) { doFilter.run(); }
+        // Listeners filter — tìm kiếm/lọc theo tháng và trạng thái
+        Runnable doFilter = this::refreshTable;
+        tfSearch.addKeyListener(new KeyAdapter() {
+            @Override public void keyReleased(KeyEvent ev) { doFilter.run(); }
         });
         cbMonth.addActionListener(e -> doFilter.run());
         cbStatus.addActionListener(e -> doFilter.run());
@@ -110,6 +113,7 @@ public class PaymentPanel extends JPanel {
             @Override public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
                     int row = table.getSelectedRow();
+                    if (row < 0) return;
                     String id = (String) model.getValueAt(row, 0);
                     Invoice inv = DatabaseService.getAllInvoices().stream().filter(i -> i.getId().equals(id)).findFirst().orElse(null);
                     if (inv != null && !inv.isPaid()) {
@@ -119,7 +123,7 @@ public class PaymentPanel extends JPanel {
                         if (r == JOptionPane.YES_OPTION) {
                             if (DatabaseService.markInvoicePaid(inv.getId(), true)) {
                                 inv.setPaid(true);
-                                refreshTable("", "Tất cả tháng", "Tất cả");
+                                refreshTable();
                                 JOptionPane.showMessageDialog(PaymentPanel.this,
                                     "✅ Thanh toán thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
                             } else {
@@ -168,25 +172,131 @@ public class PaymentPanel extends JPanel {
         return card;
     }
 
-    private void refreshTable(String search, String month, String status) {
+    /** Lọc bảng theo từ khóa tìm kiếm, tháng và trạng thái đang chọn */
+    private void refreshTable() {
+        String search = tfSearch != null ? tfSearch.getText().trim().toLowerCase() : "";
+        String month  = cbMonth  != null ? (String) cbMonth.getSelectedItem()  : "Tất cả tháng";
+        String status = cbStatus != null ? (String) cbStatus.getSelectedItem() : "Tất cả";
+
         model.setRowCount(0);
         for (Invoice inv : DatabaseService.getAllInvoices()) {
-            // Filter tháng
-            if (month != null && !month.isEmpty() && !month.equals("Tất cả tháng")) {
+            if (month != null && !month.equals("Tất cả tháng")) {
                 if (inv.getMonth() == null || !inv.getMonth().equals(month)) continue;
             }
-            // Filter trạng thái
             if (status != null && !status.equals("Tất cả")) {
                 boolean wantPaid = status.equals("Đã thanh toán");
                 if (inv.isPaid() != wantPaid) continue;
             }
-            // Filter tìm kiếm
-            if (search != null && !search.isEmpty()) {
-                String combined = (inv.getStudentName() + " " + inv.getRoomId()).toLowerCase();
+            if (!search.isEmpty()) {
+                String combined = ((inv.getStudentName() == null ? "" : inv.getStudentName()) + " "
+                                  + (inv.getRoomId() == null ? "" : inv.getRoomId())).toLowerCase();
                 if (!combined.contains(search)) continue;
             }
             model.addRow(inv.toRow());
         }
+    }
+
+    /**
+     * Mở dialog "Thanh toán trước hạn": admin chọn sinh viên (đang có hợp đồng hiệu lực)
+     * và một tháng (có thể là tháng tương lai chưa tới hạn), hệ thống tạo hóa đơn mới
+     * cho tháng đó, đánh dấu đã thanh toán ngay, và gửi thông báo cho sinh viên.
+     */
+    private void openPrepayDialog() {
+        List<Contract> activeContracts = DatabaseService.getAllContracts().stream()
+            .filter(c -> c.getStatus() == Contract.Status.ACTIVE)
+            .collect(java.util.stream.Collectors.toList());
+
+        if (activeContracts.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "⚠ Không có sinh viên nào đang có hợp đồng hiệu lực để thanh toán trước hạn!",
+                "Không có dữ liệu", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Combobox sinh viên: hiển thị "SV001249 - Nguyễn Văn An (P101)"
+        String[] studentOptions = activeContracts.stream()
+            .map(c -> c.getStudentId() + " - " + c.getStudentName() + " (" + c.getRoomId() + ")")
+            .toArray(String[]::new);
+        JComboBox<String> cbStudent = new JComboBox<>(studentOptions);
+
+        // Sinh sẵn 6 tháng tới (kể cả tháng hiện tại) để admin chọn nhanh
+        java.time.YearMonth now = java.time.YearMonth.now();
+        String[] monthOptions = new String[6];
+        for (int i = 0; i < 6; i++) {
+            java.time.YearMonth ym = now.plusMonths(i);
+            monthOptions[i] = String.format("%02d/%d", ym.getMonthValue(), ym.getYear());
+        }
+        JComboBox<String> cbTargetMonth = new JComboBox<>(monthOptions);
+        cbTargetMonth.setEditable(true); // cho phép nhập tháng khác ngoài 6 tháng gợi ý, dạng MM/yyyy
+
+        JPanel dlg = new JPanel(new GridLayout(0, 2, 6, 8));
+        dlg.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+        dlg.add(new JLabel("Sinh viên:"));      dlg.add(cbStudent);
+        dlg.add(new JLabel("Tháng thanh toán:")); dlg.add(cbTargetMonth);
+
+        int confirm = JOptionPane.showConfirmDialog(this, dlg,
+            "⚡ Thanh toán trước hạn", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (confirm != JOptionPane.OK_OPTION) return;
+
+        int idx = cbStudent.getSelectedIndex();
+        if (idx < 0) return;
+        Contract contract = activeContracts.get(idx);
+
+        String month = ((String) cbTargetMonth.getEditor().getItem()).trim();
+        if (!month.matches("\\d{2}/\\d{4}")) {
+            JOptionPane.showMessageDialog(this,
+                "⚠ Tháng không hợp lệ! Vui lòng nhập đúng định dạng MM/yyyy, ví dụ 09/2026.",
+                "Lỗi", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Kiểm tra hóa đơn của sinh viên/tháng này đã tồn tại chưa
+        boolean exists = DatabaseService.getAllInvoices().stream()
+            .anyMatch(inv -> inv.getStudentId().equals(contract.getStudentId()) && inv.getMonth().equals(month));
+        if (exists) {
+            JOptionPane.showMessageDialog(this,
+                "⚠ Sinh viên này đã có hóa đơn tháng " + month + " rồi! Không thể tạo trùng.",
+                "Đã tồn tại", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Hóa đơn trả trước: chỉ tính tiền phòng theo hợp đồng (chưa có chỉ số điện nước thực tế tháng đó)
+        Invoice inv = new Invoice(
+            DatabaseService.nextInvoiceId(),
+            contract.getStudentId(),
+            contract.getStudentName(),
+            contract.getRoomId(),
+            month,
+            contract.getMonthlyFee(),
+            0L, 0L,
+            true // đã thanh toán ngay
+        );
+
+        if (!DatabaseService.addInvoice(inv)) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Tạo hóa đơn thất bại! Kiểm tra kết nối database.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Gửi thông báo tới sinh viên
+        Notification noti = new Notification(
+            DatabaseService.nextNotificationId(),
+            "Xác nhận thanh toán trước hạn",
+            "Bạn đã thanh toán trước tiền phòng tháng " + month + " (" + String.format("%,d đ", contract.getMonthlyFee()) + "). Cảm ơn bạn!",
+            Notification.Type.INVOICE,
+            Notification.Target.STUDENT,
+            contract.getStudentId(),
+            java.time.LocalDateTime.now(),
+            "Quản trị viên",
+            false, false
+        );
+        DatabaseService.addNotification(noti);
+
+        refreshTable();
+        JOptionPane.showMessageDialog(this,
+            "✅ Đã tạo và thanh toán hóa đơn " + inv.getId() + " cho " + contract.getStudentName()
+            + " — tháng " + month + ".\n📨 Đã gửi thông báo tới sinh viên.",
+            "Thành công", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /** Xuất danh sách hóa đơn ra file CSV (mở được bằng Excel) */
