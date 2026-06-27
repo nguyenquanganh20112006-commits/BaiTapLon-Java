@@ -165,8 +165,8 @@ public class UtilityPanel extends JPanel {
         tfElecPrev.setToolTipText("Tự động lấy từ chỉ số cuối kỳ tháng trước");
         tfWaterPrev.setToolTipText("Tự động lấy từ chỉ số cuối kỳ tháng trước");
 
-        JPanel elecGrid  = makeRow2(makeFieldPanel("CHỈ SỐ ĐẦU KỲ (tự động)", tfElecPrev),  makeFieldPanel("CHỈ SỐ CUỐI KỲ", tfElecCurr));
-        JPanel waterGrid = makeRow2(makeFieldPanel("CHỈ SỐ ĐẦU KỲ (tự động)", tfWaterPrev), makeFieldPanel("CHỈ SỐ CUỐI KỲ", tfWaterCurr));
+        JPanel elecGrid  = makeRow2(makeFieldPanel("CHỈ SỐ ĐẦU KỲ", tfElecPrev),  makeFieldPanel("CHỈ SỐ CUỐI KỲ", tfElecCurr));
+        JPanel waterGrid = makeRow2(makeFieldPanel("CHỈ SỐ ĐẦU KỲ", tfWaterPrev), makeFieldPanel("CHỈ SỐ CUỐI KỲ", tfWaterCurr));
         JPanel priceGrid = makeRow2(makeFieldPanel("ĐƠN GIÁ ĐIỆN (đ/kWh)", tfElecPrice), makeFieldPanel("ĐƠN GIÁ NƯỚC (đ/m³)", tfWaterPrice));
         JPanel preview = buildPreviewPanel();
         JPanel noteRow = makeRow1("GHI CHÚ", tfNote);
@@ -174,17 +174,17 @@ public class UtilityPanel extends JPanel {
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow.setOpaque(false); btnRow.setAlignmentX(LEFT_ALIGNMENT);
         btnRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
-        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
+        JButton btnAdd    = UITheme.primaryBtn("Thêm");
+        JButton btnEdit   = UITheme.warningBtn("Sửa");
+        JButton btnDelete = UITheme.dangerBtn("Xóa");
+        JButton btnReset  = UITheme.outlineBtn("Làm mới");
         btnRow.add(btnAdd); btnRow.add(btnEdit); btnRow.add(btnDelete); btnRow.add(btnReset);
 
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnConfirm = UITheme.successBtn("□ Chốt chỉ số");
-        JButton btnExport  = UITheme.purpleBtn("□ Xuất báo cáo");
+        JButton btnConfirm = UITheme.successBtn("Chốt chỉ số");
+        JButton btnExport  = UITheme.purpleBtn("Xuất báo cáo");
         btnRow2.add(btnConfirm); btnRow2.add(btnExport);
 
         btnAdd.addActionListener(e    -> addUtility());
@@ -308,8 +308,8 @@ public class UtilityPanel extends JPanel {
         p.setAlignmentX(LEFT_ALIGNMENT);
         p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
         p.setOpaque(false);
-        lblPreviewElec  = previewChip("Tiền điện", "0 đ", UITheme.WARNING_BG, UITheme.WARNING_TEXT);
-        lblPreviewWater = previewChip("Tiền nước", "0 đ", new Color(0xDBEAFE), UITheme.INFO_TEXT);
+        lblPreviewElec  = previewChip("Tiền điện", "2000 đ", UITheme.WARNING_BG, UITheme.WARNING_TEXT);
+        lblPreviewWater = previewChip("Tiền nước", "6000 đ", new Color(0xDBEAFE), UITheme.INFO_TEXT);
         lblPreviewTotal = previewChip("Tổng tiền", "0 đ", UITheme.SUCCESS_BG, UITheme.SUCCESS_TEXT);
         p.add(wrapChip("⚡ Điện", lblPreviewElec));
         p.add(wrapChip("💧 Nước", lblPreviewWater));
@@ -377,7 +377,7 @@ public class UtilityPanel extends JPanel {
         );
         cbConfirmFilter.setPreferredSize(new Dimension(120, 36));
 
-        JButton btnRefresh = UITheme.outlineBtn("□ Làm mới");
+        JButton btnRefresh = UITheme.outlineBtn("Làm mới");
         btnRefresh.setPreferredSize(new Dimension(100, 36));
 
         toolbar.add(tfSearch);
