@@ -276,7 +276,7 @@ public class AdminFrame extends JFrame {
         main.add(buildHeader(), BorderLayout.NORTH);
         contentArea = new JPanel(new BorderLayout());
         contentArea.setBackground(UITheme.BG_LIGHT);
-        contentArea.add(new DashboardPanel(), BorderLayout.CENTER);
+        contentArea.add(buildDashboardPanel(), BorderLayout.CENTER);
         main.add(contentArea, BorderLayout.CENTER);
         return main;
     }
@@ -352,7 +352,7 @@ public class AdminFrame extends JFrame {
     private void switchPanel(String name) {
         contentArea.removeAll();
         JPanel panel = switch (name) {
-            case "Dashboard" -> new DashboardPanel();
+            case "Dashboard" -> buildDashboardPanel();
             case "Quản lý sinh viên" -> new StudentPanel();
             case "Quản lý phòng" -> new RoomPanel();
             case "Quản lý hợp đồng" -> new ContractPanel();
@@ -367,6 +367,16 @@ public class AdminFrame extends JFrame {
         contentArea.add(panel, BorderLayout.CENTER);
         contentArea.revalidate();
         contentArea.repaint();
+    }
+
+    private DashboardPanel buildDashboardPanel() {
+        DashboardPanel dash = new DashboardPanel();
+        dash.setOnNavigateToRooms(() -> {
+            activeMenu = "Quản lý phòng";
+            switchPanel("Quản lý phòng");
+            rebuildSidebar();
+        });
+        return dash;
     }
 
     private JPanel buildComingSoon(String name) {
